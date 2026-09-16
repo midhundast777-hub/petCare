@@ -36,6 +36,11 @@ export const authService = {
     return response.data;
   },
 
+  updateUser: async (id, userData) => {
+    const response = await api.patch(`/auth/users/${id}/`, userData);
+    return response.data;
+  },
+
   deleteUser: async (id) => {
     const response = await api.delete(`/auth/users/${id}/`);
     return response.data;

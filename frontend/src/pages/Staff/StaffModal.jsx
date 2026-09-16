@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import Modal from '../../components/Modal';
 import { authService } from '../../services/authService';
 import { useToast } from '../../context/ToastContext';
-import { Lock, Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 
-export const StaffModal = ({ isOpen, onClose, onSaved }) => {
+export const StaffModal = ({ isOpen, onClose, staffMember, onSaved }) => {
   const { addToast } = useToast();
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -17,31 +17,55 @@ export const StaffModal = ({ isOpen, onClose, onSaved }) => {
     password: '',
   });
 
+  const isEdit = !!staffMember?.id;
+
   useEffect(() => {
     if (isOpen) {
-      setFormData({
-        first_name: '',
-        last_name: '',
-        email: '',
-        phone: '',
-        role: 'STAFF',
-        password: '',
-      });
+      if (staffMember) {
+        setFormData({
+          first_name: staffMember.first_name || '',
+          last_name: staffMember.last_name || '',
+          email: staffMember.email || '',
+          phone: staffMember.phone || '',
+          role: staffMember.role || 'STAFF',
+          password: '',
+        });
+      } else {
+        setFormData({
+          first_name: '',
+          last_name: '',
+          email: '',
+          phone: '',
+          role: 'STAFF',
+          password: '',
+        });
+      }
       setShowPassword(false);
     }
-  }, [isOpen]);
+  }, [isOpen, staffMember]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+
+    const payload = { ...formData };
+    if (isEdit && !payload.password) {
+      delete payload.password; // Don't overwrite password if left blank
+    }
+
     try {
-      await authService.createUser(formData);
-      addToast('Staff member account created successfully!', 'success');
+      if (isEdit) {
+        await authService.updateUser(staffMember.id, payload);
+        addToast('Staff member updated successfully!', 'success');
+      } else {
+        await authService.createUser(payload);
+        addToast('Staff member account created successfully!', 'success');
+      }
       if (onSaved) onSaved();
       onClose();
     } catch (err) {
       const errorData = err.response?.data;
-      let msg = 'Failed to create staff account. Please verify details.';
+      let msg = 'Failed to save staff details. Please verify inputs.';
       if (typeof errorData === 'string') {
         msg = errorData;
       } else if (errorData?.detail) {
@@ -61,8 +85,8 @@ export const StaffModal = ({ isOpen, onClose, onSaved }) => {
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Add New Staff Member"
-      subtitle="Register a new veterinary doctor, groomer, or facility administrator"
+      title={isEdit ? `Edit Staff Member (${staffMember?.full_name})` : 'Add New Staff Member'}
+      subtitle={isEdit ? 'Update staff profile, contact number, role, or reset password' : 'Register a new veterinary doctor, groomer, or facility administrator'}
       maxWidth="max-w-xl"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -142,16 +166,16 @@ export const StaffModal = ({ isOpen, onClose, onSaved }) => {
 
           <div>
             <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
-              Temporary Password *
+              {isEdit ? 'Reset Password (Optional)' : 'Temporary Password *'}
             </label>
             <div className="relative">
               <input
                 type={showPassword ? 'text' : 'password'}
-                required
+                required={!isEdit}
                 minLength={6}
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                placeholder="At least 6 characters"
+                placeholder={isEdit ? 'Leave blank to keep current password' : 'At least 6 characters'}
                 className="w-full pl-3.5 pr-10 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500/20"
               />
               <button
@@ -179,7 +203,7 @@ export const StaffModal = ({ isOpen, onClose, onSaved }) => {
             disabled={loading}
             className="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-bold shadow-sm transition-colors disabled:opacity-50"
           >
-            {loading ? 'Creating...' : 'Create Staff Member'}
+            {loading ? 'Saving...' : isEdit ? 'Save Changes' : 'Create Staff Member'}
           </button>
         </div>
       </form>

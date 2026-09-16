@@ -41,19 +41,22 @@ class RegisterSerializer(serializers.ModelSerializer):
         return user
 
 class AdminCreateUserSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, required=True, min_length=6)
+    password = serializers.CharField(write_only=True, required=False, allow_blank=True, min_length=6)
 
     class Meta:
         model = User
         fields = ('id', 'email', 'password', 'first_name', 'last_name', 'role', 'phone', 'avatar')
 
     def create(self, validated_data):
+        password = validated_data.get('password')
+        if not password:
+            raise serializers.ValidationError({'password': ['Password is required for new accounts.']})
         role = validated_data.get('role', User.Role.STAFF)
         is_staff = role in [User.Role.STAFF, User.Role.ADMIN]
         is_superuser = role == User.Role.ADMIN
         user = User.objects.create_user(
             email=validated_data['email'],
-            password=validated_data['password'],
+            password=password,
             first_name=validated_data.get('first_name', ''),
             last_name=validated_data.get('last_name', ''),
             role=role,
@@ -63,6 +66,19 @@ class AdminCreateUserSerializer(serializers.ModelSerializer):
             is_superuser=is_superuser,
         )
         return user
+
+    def update(self, instance, validated_data):
+        password = validated_data.pop('password', None)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        if password:
+            instance.set_password(password)
+        if 'role' in validated_data:
+            role = validated_data['role']
+            instance.is_staff = role in [User.Role.STAFF, User.Role.ADMIN]
+            instance.is_superuser = role == User.Role.ADMIN
+        instance.save()
+        return instance
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     username_field = 'email'

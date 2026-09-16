@@ -27,7 +27,7 @@ import {
 
 export const PetDetail = () => {
   const { id } = useParams();
-  const { isStaff } = useAuth();
+  const { isStaff, isAdmin } = useAuth();
   const { addToast } = useToast();
   const [pet, setPet] = useState(null);
   const [vaccinations, setVaccinations] = useState([]);
@@ -159,13 +159,15 @@ export const PetDetail = () => {
           </div>
         </div>
 
-        <button
-          onClick={() => setIsEditModalOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold transition-colors"
-        >
-          <Edit className="w-4 h-4" />
-          <span>Edit Pet Details</span>
-        </button>
+        {!isAdmin && (
+          <button
+            onClick={() => setIsEditModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold transition-colors"
+          >
+            <Edit className="w-4 h-4" />
+            <span>Edit Pet Details</span>
+          </button>
+        )}
       </div>
 
       {/* Health Alerts & Dietary Tags */}

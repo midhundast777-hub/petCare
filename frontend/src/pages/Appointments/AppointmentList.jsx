@@ -137,77 +137,72 @@ export const AppointmentList = () => {
       header: 'Actions',
       className: 'text-right',
       render: (row) => (
-        <div className="flex items-center justify-end gap-1 flex-wrap">
-          {/* Quick status transitions */}
-          {row.status === 'PENDING' && isStaff && (
-            <button
-              onClick={() => handleStatusChange(row.id, 'CONFIRMED', row.pet_name)}
-              title="Confirm Appointment"
-              className="p-1.5 text-sky-600 hover:bg-sky-50 rounded-lg transition-colors"
-            >
-              <Check className="w-4 h-4" />
-            </button>
-          )}
+        <div className="flex items-center justify-end gap-1">
+          {!isAdmin ? (
+            <>
+              {row.status === 'PENDING' && isStaff && (
+                <button
+                  onClick={() => handleStatusChange(row.id, 'CONFIRMED', row.pet_name)}
+                  title="Confirm Appointment"
+                  className="p-1.5 text-sky-600 hover:bg-sky-50 rounded-lg transition-colors"
+                >
+                  <Check className="w-4 h-4" />
+                </button>
+              )}
 
-          {row.status === 'CONFIRMED' && isStaff && (
-            <button
-              onClick={() => handleStatusChange(row.id, 'CHECKED_IN', row.pet_name)}
-              title="Mark Checked-In"
-              className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-            >
-              <LogIn className="w-4 h-4" />
-            </button>
-          )}
+              {row.status === 'CONFIRMED' && isStaff && (
+                <button
+                  onClick={() => handleStatusChange(row.id, 'CHECKED_IN', row.pet_name)}
+                  title="Mark Checked-In"
+                  className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                >
+                  <LogIn className="w-4 h-4" />
+                </button>
+              )}
 
-          {row.status === 'CHECKED_IN' && isStaff && (
-            <button
-              onClick={() => handleStatusChange(row.id, 'IN_PROGRESS', row.pet_name)}
-              title="Start Service"
-              className="p-1.5 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
-            >
-              <Clock className="w-4 h-4" />
-            </button>
-          )}
+              {row.status === 'CHECKED_IN' && isStaff && (
+                <button
+                  onClick={() => handleStatusChange(row.id, 'IN_PROGRESS', row.pet_name)}
+                  title="Start Service"
+                  className="p-1.5 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                >
+                  <Clock className="w-4 h-4" />
+                </button>
+              )}
 
-          {row.status === 'IN_PROGRESS' && isStaff && (
-            <button
-              onClick={() => handleStatusChange(row.id, 'COMPLETED', row.pet_name)}
-              title="Mark Completed"
-              className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
-            >
-              <CheckCircle className="w-4 h-4" />
-            </button>
-          )}
+              {row.status === 'IN_PROGRESS' && isStaff && (
+                <button
+                  onClick={() => handleStatusChange(row.id, 'COMPLETED', row.pet_name)}
+                  title="Mark Completed"
+                  className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                >
+                  <CheckCircle className="w-4 h-4" />
+                </button>
+              )}
 
-          {['PENDING', 'CONFIRMED'].includes(row.status) && (
-            <button
-              onClick={() => handleStatusChange(row.id, 'CANCELLED', row.pet_name)}
-              title="Cancel Visit"
-              className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"
-            >
-              <XCircle className="w-4 h-4" />
-            </button>
-          )}
+              {['PENDING', 'CONFIRMED'].includes(row.status) && (
+                <button
+                  onClick={() => handleStatusChange(row.id, 'CANCELLED', row.pet_name)}
+                  title="Cancel Visit"
+                  className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"
+                >
+                  <XCircle className="w-4 h-4" />
+                </button>
+              )}
 
-          <button
-            onClick={() => {
-              setEditingAppointment(row);
-              setIsModalOpen(true);
-            }}
-            title="Edit / Reschedule"
-            className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
-          >
-            <Edit2 className="w-4 h-4" />
-          </button>
-
-          {isAdmin && (
-            <button
-              onClick={() => handleDelete(row.id, row.appointment_id)}
-              title="Delete Record"
-              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
+              <button
+                onClick={() => {
+                  setEditingAppointment(row);
+                  setIsModalOpen(true);
+                }}
+                title="Edit / Reschedule"
+                className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                <Edit2 className="w-4 h-4" />
+              </button>
+            </>
+          ) : (
+            <span className="text-xs text-slate-400 font-medium italic">View only</span>
           )}
         </div>
       ),
@@ -251,16 +246,18 @@ export const AppointmentList = () => {
             </button>
           </div>
 
-          <button
-            onClick={() => {
-              setEditingAppointment(null);
-              setIsModalOpen(true);
-            }}
-            className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-sm transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Schedule Appointment</span>
-          </button>
+          {!isAdmin && (
+            <button
+              onClick={() => {
+                setEditingAppointment(null);
+                setIsModalOpen(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-sm transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Schedule Appointment</span>
+            </button>
+          )}
         </div>
       </div>
 

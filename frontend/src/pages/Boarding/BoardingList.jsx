@@ -187,7 +187,7 @@ export const BoardingList = () => {
       render: (row) => (
         <div className="flex items-center justify-end gap-1.5 flex-wrap">
           {/* Digital Check-In Button */}
-          {row.status === 'RESERVED' && isStaff && (
+          {row.status === 'RESERVED' && !isAdmin && isStaff && (
             <button
               onClick={() => openChecklist(row, 'checkin')}
               className="flex items-center gap-1 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-sm transition-colors"
@@ -198,7 +198,7 @@ export const BoardingList = () => {
           )}
 
           {/* Digital Check-Out Button */}
-          {row.status === 'CHECKED_IN' && isStaff && (
+          {row.status === 'CHECKED_IN' && !isAdmin && isStaff && (
             <button
               onClick={() => openChecklist(row, 'checkout')}
               className="flex items-center gap-1 px-2.5 py-1 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-bold shadow-sm transition-colors"
@@ -217,25 +217,33 @@ export const BoardingList = () => {
             <Activity className="w-4 h-4" />
           </button>
 
-          <button
-            onClick={() => {
-              setEditingBooking(row);
-              setIsBookingModalOpen(true);
-            }}
-            title="Edit Stay"
-            className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
-          >
-            <Edit2 className="w-4 h-4" />
-          </button>
+          {!isAdmin && (
+            <button
+              onClick={() => {
+                setEditingBooking(row);
+                setIsBookingModalOpen(true);
+              }}
+              title="Edit Stay"
+              className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              <Edit2 className="w-4 h-4" />
+            </button>
+          )}
 
-          {isAdmin && (
+          {!isAdmin && (
             <button
               onClick={() => handleDeleteBooking(row.id, row.booking_id)}
-              title="Delete Stay"
+              title="Cancel / Delete Stay"
               className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
             >
               <Trash2 className="w-4 h-4" />
             </button>
+          )}
+
+          {isAdmin && (
+            <span className="text-[11px] font-semibold text-slate-400 italic px-2 py-0.5 bg-slate-50 border border-slate-200 rounded">
+              View Only
+            </span>
           )}
         </div>
       ),
@@ -256,16 +264,18 @@ export const BoardingList = () => {
           </p>
         </div>
 
-        <button
-          onClick={() => {
-            setEditingBooking(null);
-            setIsBookingModalOpen(true);
-          }}
-          className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-sm transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          <span>New Boarding Stay</span>
-        </button>
+        {!isAdmin && (
+          <button
+            onClick={() => {
+              setEditingBooking(null);
+              setIsBookingModalOpen(true);
+            }}
+            className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-sm transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            <span>New Boarding Stay</span>
+          </button>
+        )}
       </div>
 
       {/* Kennel / Room Status Overview Board */}
@@ -377,7 +387,7 @@ export const BoardingList = () => {
         >
           <div className="space-y-5">
             {/* New Care Log Form */}
-            {isStaff && (
+            {!isAdmin && isStaff && (
               <form onSubmit={handleAddCareLog} className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
                 <p className="text-xs font-bold text-slate-800 uppercase tracking-wider">
                   Log New Care Activity

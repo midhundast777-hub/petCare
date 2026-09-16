@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { vaccinationService } from '../../services/vaccinationService';
 import { useToast } from '../../context/ToastContext';
+import { useAuth } from '../../hooks/useAuth';
 import DataTable from '../../components/DataTable';
 import VaccinationModal from './VaccinationModal';
 import {
@@ -13,11 +14,14 @@ import {
   AlertCircle,
   Edit2,
   Trash2,
-  Dog
+  Dog,
+  FileSpreadsheet,
+  Printer
 } from 'lucide-react';
 
 export const VaccinationList = () => {
   const { addToast } = useToast();
+  const { isAdmin, isStaff } = useAuth();
   const [vaccinations, setVaccinations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
@@ -53,6 +57,147 @@ export const VaccinationList = () => {
         addToast('Failed to delete vaccination', 'error');
       }
     }
+  };
+
+  const handleExportCSV = () => {
+    if (!vaccinations.length) {
+      addToast('No vaccination records to export', 'info');
+      return;
+    }
+    const headers = [
+      'Pet Name',
+      'Species',
+      'Owner',
+      'Vaccine Name',
+      'Certificate Number',
+      'Administered Date',
+      'Expiry Date',
+      'Status',
+      'Days Until Expiry',
+      'Veterinarian'
+    ];
+
+    const rows = vaccinations.map((v) => [
+      `"${(v.pet_name || '').replace(/"/g, '""')}"`,
+      `"${(v.pet_species || '').replace(/"/g, '""')}"`,
+      `"${(v.owner_name || '').replace(/"/g, '""')}"`,
+      `"${(v.vaccine_name || '').replace(/"/g, '""')}"`,
+      `"${(v.certificate_number || '').replace(/"/g, '""')}"`,
+      `"${v.vaccination_date || ''}"`,
+      `"${v.expiry_date || ''}"`,
+      `"${v.status || ''}"`,
+      v.days_until_expiry ?? '',
+      `"${(v.veterinarian || '').replace(/"/g, '""')}"`
+    ]);
+
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `vaccination_registry_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    addToast('Vaccination registry exported to Excel CSV', 'success');
+  };
+
+  const handleExportPDF = () => {
+    if (!vaccinations.length) {
+      addToast('No vaccination records to export', 'info');
+      return;
+    }
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      addToast('Please allow popups to generate PDF report', 'error');
+      return;
+    }
+
+    const tableRows = vaccinations
+      .map(
+        (v) => `
+      <tr>
+        <td style="padding: 8px 10px; border: 1px solid #e2e8f0;">${v.pet_name || ''} <span style="color:#64748b; font-size:11px;">(${v.pet_species || ''})</span></td>
+        <td style="padding: 8px 10px; border: 1px solid #e2e8f0;">${v.owner_name || ''}</td>
+        <td style="padding: 8px 10px; border: 1px solid #e2e8f0; font-weight:600;">${v.vaccine_name || ''}</td>
+        <td style="padding: 8px 10px; border: 1px solid #e2e8f0; font-family: monospace;">${v.certificate_number || '—'}</td>
+        <td style="padding: 8px 10px; border: 1px solid #e2e8f0;">${v.vaccination_date || ''}</td>
+        <td style="padding: 8px 10px; border: 1px solid #e2e8f0; font-weight:600;">${v.expiry_date || ''}</td>
+        <td style="padding: 8px 10px; border: 1px solid #e2e8f0;">
+          <span style="display:inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 10px; font-weight: bold; background: ${
+            v.status === 'VALID'
+              ? '#dcfce7; color: #166534;'
+              : v.status === 'EXPIRING_SOON'
+              ? '#fef3c7; color: #92400e;'
+              : '#ffe4e6; color: #9f1239;'
+          }">
+            ${v.status || ''}
+          </span>
+        </td>
+        <td style="padding: 8px 10px; border: 1px solid #e2e8f0;">${v.veterinarian || '—'}</td>
+      </tr>
+    `
+      )
+      .join('');
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Vaccination Registry Report - Pet Care</title>
+          <style>
+            @page { size: landscape; margin: 12mm; }
+            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #1e293b; margin: 0; padding: 20px; }
+            .header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #0284c7; padding-bottom: 12px; margin-bottom: 20px; }
+            .title { font-size: 20px; font-weight: 800; color: #0f172a; margin: 0; }
+            .subtitle { font-size: 12px; color: #64748b; margin: 4px 0 0 0; }
+            .meta { text-align: right; font-size: 11px; color: #64748b; }
+            table { width: 100%; border-collapse: collapse; font-size: 12px; }
+            th { background-color: #f8fafc; color: #475569; font-weight: 700; text-align: left; padding: 10px; border: 1px solid #cbd5e1; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+            tr:nth-child(even) { background-color: #f8fafc; }
+            .footer { margin-top: 24px; font-size: 11px; color: #94a3b8; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 12px; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div>
+              <div class="title">🐾 Pet Care — Official Vaccination Registry</div>
+              <div class="subtitle">Complete patient immunization records and renewal compliance status</div>
+            </div>
+            <div class="meta">
+              <div><strong>Generated:</strong> ${new Date().toLocaleString()}</div>
+              <div><strong>Total Records:</strong> ${vaccinations.length}</div>
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Pet Patient</th>
+                <th>Parent / Owner</th>
+                <th>Vaccine Name</th>
+                <th>Certificate #</th>
+                <th>Given Date</th>
+                <th>Expiry Date</th>
+                <th>Status</th>
+                <th>Veterinarian</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${tableRows}
+            </tbody>
+          </table>
+          <div class="footer">
+            Confidential Pet Healthcare Record • Pet Care Clinic & Hospital System
+          </div>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+    }, 250);
   };
 
   const statusBadge = (status, days) => {
@@ -132,23 +277,31 @@ export const VaccinationList = () => {
       className: 'text-right',
       render: (row) => (
         <div className="flex items-center justify-end gap-1.5">
-          <button
-            onClick={() => {
-              setEditingVaccination(row);
-              setIsModalOpen(true);
-            }}
-            title="Edit Record"
-            className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
-          >
-            <Edit2 className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => handleDelete(row.id, row.vaccine_name)}
-            title="Delete Record"
-            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
+          {!isAdmin ? (
+            <>
+              <button
+                onClick={() => {
+                  setEditingVaccination(row);
+                  setIsModalOpen(true);
+                }}
+                title="Edit Record"
+                className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                <Edit2 className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => handleDelete(row.id, row.vaccine_name)}
+                title="Delete Record"
+                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </>
+          ) : (
+            <span className="text-[11px] font-semibold text-slate-400 italic px-2 py-0.5 bg-slate-50 border border-slate-200 rounded">
+              View Only
+            </span>
+          )}
         </div>
       ),
     },
@@ -171,16 +324,37 @@ export const VaccinationList = () => {
           </p>
         </div>
 
-        <button
-          onClick={() => {
-            setEditingVaccination(null);
-            setIsModalOpen(true);
-          }}
-          className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-sm transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Record Vaccination</span>
-        </button>
+        {isAdmin ? (
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={handleExportCSV}
+              className="flex items-center gap-1.5 px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm transition-colors"
+              title="Download registry data as Excel CSV"
+            >
+              <FileSpreadsheet className="w-4 h-4" />
+              <span>Download to Excel</span>
+            </button>
+            <button
+              onClick={handleExportPDF}
+              className="flex items-center gap-1.5 px-3.5 py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-bold shadow-sm transition-colors"
+              title="Download or print registry as PDF"
+            >
+              <Printer className="w-4 h-4" />
+              <span>Download / Print PDF</span>
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => {
+              setEditingVaccination(null);
+              setIsModalOpen(true);
+            }}
+            className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-sm transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Record Vaccination</span>
+          </button>
+        )}
       </div>
 
       {/* Expiration Alert Banners */}

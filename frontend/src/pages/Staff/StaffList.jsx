@@ -4,7 +4,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../context/ToastContext';
 import DataTable from '../../components/DataTable';
 import StaffModal from './StaffModal';
-import { UserCheck, Plus, Trash2, Mail, Phone, ShieldCheck, User } from 'lucide-react';
+import { UserCheck, Plus, Trash2, Mail, Phone, ShieldCheck, User, Edit2 } from 'lucide-react';
 
 export const StaffList = () => {
   const { user: currentUser } = useAuth();
@@ -13,6 +13,7 @@ export const StaffList = () => {
   const [loading, setLoading] = useState(true);
   const [roleFilter, setRoleFilter] = useState('STAFF');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingStaff, setEditingStaff] = useState(null);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -122,6 +123,16 @@ export const StaffList = () => {
       header: 'Actions',
       render: (row) => (
         <div className="flex items-center gap-1">
+          <button
+            onClick={() => {
+              setEditingStaff(row);
+              setIsModalOpen(true);
+            }}
+            title="Edit Staff Member"
+            className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
+          >
+            <Edit2 className="w-4 h-4" />
+          </button>
           {row.id !== currentUser?.id && (
             <button
               onClick={() => handleDelete(row.id, row.full_name)}
@@ -150,7 +161,10 @@ export const StaffList = () => {
         </div>
 
         <button
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => {
+            setEditingStaff(null);
+            setIsModalOpen(true);
+          }}
           className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-sm transition-colors"
         >
           <Plus className="w-4 h-4" />
@@ -179,7 +193,11 @@ export const StaffList = () => {
       {isModalOpen && (
         <StaffModal
           isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
+          onClose={() => {
+            setIsModalOpen(false);
+            setEditingStaff(null);
+          }}
+          staffMember={editingStaff}
           onSaved={fetchUsers}
         />
       )}

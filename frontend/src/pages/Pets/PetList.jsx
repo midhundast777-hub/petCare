@@ -4,9 +4,11 @@ import { petService } from '../../services/petService';
 import { useToast } from '../../context/ToastContext';
 import DataTable from '../../components/DataTable';
 import PetModal from './PetModal';
+import { useAuth } from '../../hooks/useAuth';
 import { Dog, Plus, Eye, Edit2, Trash2, User, Sparkles } from 'lucide-react';
 
 export const PetList = () => {
+  const { isStaff, isAdmin } = useAuth();
   const { addToast } = useToast();
   const [pets, setPets] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -140,23 +142,27 @@ export const PetList = () => {
           >
             <Eye className="w-4 h-4" />
           </Link>
-          <button
-            onClick={() => {
-              setEditingPet(row);
-              setIsModalOpen(true);
-            }}
-            title="Edit Pet"
-            className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
-          >
-            <Edit2 className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => handleDelete(row.id, row.name)}
-            title="Delete Pet"
-            className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
+          {!isAdmin && (
+            <>
+              <button
+                onClick={() => {
+                  setEditingPet(row);
+                  setIsModalOpen(true);
+                }}
+                title="Edit Pet"
+                className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                <Edit2 className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => handleDelete(row.id, row.name)}
+                title="Delete Pet"
+                className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </>
+          )}
         </div>
       ),
     },
@@ -175,16 +181,18 @@ export const PetList = () => {
           </p>
         </div>
 
-        <button
-          onClick={() => {
-            setEditingPet(null);
-            setIsModalOpen(true);
-          }}
-          className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-sm transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Register New Pet</span>
-        </button>
+        {!isAdmin && (
+          <button
+            onClick={() => {
+              setEditingPet(null);
+              setIsModalOpen(true);
+            }}
+            className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-sm transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Register New Pet</span>
+          </button>
+        )}
       </div>
 
       <DataTable

@@ -4,9 +4,11 @@ import { customerService } from '../../services/customerService';
 import { useToast } from '../../context/ToastContext';
 import DataTable from '../../components/DataTable';
 import CustomerModal from './CustomerModal';
+import { useAuth } from '../../hooks/useAuth';
 import { Users, Plus, Eye, Edit2, Trash2, Phone, Mail, Dog } from 'lucide-react';
 
 export const CustomerList = () => {
+  const { isStaff, isAdmin } = useAuth();
   const { addToast } = useToast();
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -135,23 +137,27 @@ export const CustomerList = () => {
           >
             <Eye className="w-4 h-4" />
           </Link>
-          <button
-            onClick={() => {
-              setEditingCustomer(row);
-              setIsModalOpen(true);
-            }}
-            title="Edit Customer"
-            className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
-          >
-            <Edit2 className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => handleDelete(row.id, row.full_name)}
-            title="Delete Customer"
-            className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
+          {!isAdmin && (
+            <>
+              <button
+                onClick={() => {
+                  setEditingCustomer(row);
+                  setIsModalOpen(true);
+                }}
+                title="Edit Customer"
+                className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                <Edit2 className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => handleDelete(row.id, row.full_name)}
+                title="Delete Customer"
+                className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </>
+          )}
         </div>
       ),
     },
@@ -171,16 +177,18 @@ export const CustomerList = () => {
           </p>
         </div>
 
-        <button
-          onClick={() => {
-            setEditingCustomer(null);
-            setIsModalOpen(true);
-          }}
-          className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-sm transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Add New Customer</span>
-        </button>
+        {!isAdmin && (
+          <button
+            onClick={() => {
+              setEditingCustomer(null);
+              setIsModalOpen(true);
+            }}
+            className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-sm transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Add New Customer</span>
+          </button>
+        )}
       </div>
 
       {/* Table Component with Filters */}

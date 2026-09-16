@@ -1,0 +1,1 @@
+"""Vaccinations app package."""

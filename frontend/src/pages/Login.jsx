@@ -2,11 +2,12 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../context/ToastContext';
-import { Lock, Mail, Shield, Briefcase, HeartHandshake, ArrowRight } from 'lucide-react';
+import { Lock, Mail, ArrowRight, Eye, EyeOff } from 'lucide-react';
 
 export const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const { addToast } = useToast();
@@ -24,11 +25,6 @@ export const Login = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleQuickLogin = (demoEmail, demoPassword) => {
-    setEmail(demoEmail);
-    setPassword(demoPassword);
   };
 
   return (
@@ -74,13 +70,21 @@ export const Login = () => {
               <div className="relative">
                 <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all text-slate-800"
+                  className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all text-slate-800"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none p-1"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
             </div>
 
@@ -93,65 +97,6 @@ export const Login = () => {
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
-
-          {/* Quick Demo Login Credentials Buttons */}
-          <div className="mt-6 pt-5 border-t border-slate-100">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 text-center mb-3">
-              One-Click Demo Role Accounts
-            </p>
-            <div className="grid grid-cols-1 gap-2">
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('admin@petcare.com', 'Admin@123')}
-                className="flex items-center justify-between px-3.5 py-2 rounded-xl bg-purple-50 hover:bg-purple-100/80 border border-purple-200 text-left transition-colors"
-              >
-                <div className="flex items-center gap-2.5">
-                  <Shield className="w-4 h-4 text-purple-600" />
-                  <div>
-                    <p className="text-xs font-bold text-purple-900">Admin Account</p>
-                    <p className="text-[10px] text-purple-600 font-mono">admin@petcare.com</p>
-                  </div>
-                </div>
-                <span className="text-[10px] font-bold text-purple-700 uppercase bg-white px-2 py-0.5 rounded border border-purple-200">
-                  Select
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('staff@petcare.com', 'Staff@123')}
-                className="flex items-center justify-between px-3.5 py-2 rounded-xl bg-sky-50 hover:bg-sky-100/80 border border-sky-200 text-left transition-colors"
-              >
-                <div className="flex items-center gap-2.5">
-                  <Briefcase className="w-4 h-4 text-sky-600" />
-                  <div>
-                    <p className="text-xs font-bold text-sky-900">Staff Account (Sarah)</p>
-                    <p className="text-[10px] text-sky-600 font-mono">staff@petcare.com</p>
-                  </div>
-                </div>
-                <span className="text-[10px] font-bold text-sky-700 uppercase bg-white px-2 py-0.5 rounded border border-sky-200">
-                  Select
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('customer@petcare.com', 'Customer@123')}
-                className="flex items-center justify-between px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-200 text-left transition-colors"
-              >
-                <div className="flex items-center gap-2.5">
-                  <HeartHandshake className="w-4 h-4 text-emerald-600" />
-                  <div>
-                    <p className="text-xs font-bold text-emerald-900">Customer Account (Emily)</p>
-                    <p className="text-[10px] text-emerald-600 font-mono">customer@petcare.com</p>
-                  </div>
-                </div>
-                <span className="text-[10px] font-bold text-emerald-700 uppercase bg-white px-2 py-0.5 rounded border border-emerald-200">
-                  Select
-                </span>
-              </button>
-            </div>
-          </div>
 
           <div className="mt-5 text-center text-xs text-slate-500 space-y-2">
             <div>

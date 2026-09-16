@@ -18,14 +18,26 @@ class RegisterSerializer(serializers.ModelSerializer):
         fields = ('id', 'email', 'password', 'first_name', 'last_name', 'role', 'phone')
 
     def create(self, validated_data):
+        from customers.models import Customer
+        role = validated_data.get('role', User.Role.CUSTOMER)
         user = User.objects.create_user(
             email=validated_data['email'],
             password=validated_data['password'],
             first_name=validated_data.get('first_name', ''),
             last_name=validated_data.get('last_name', ''),
-            role=validated_data.get('role', User.Role.CUSTOMER),
+            role=role,
             phone=validated_data.get('phone', '')
         )
+        if role == User.Role.CUSTOMER:
+            Customer.objects.get_or_create(
+                user=user,
+                defaults={
+                    'first_name': user.first_name or 'Valued',
+                    'last_name': user.last_name or 'Customer',
+                    'email': user.email,
+                    'phone': user.phone or '000-000-0000',
+                }
+            )
         return user
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):

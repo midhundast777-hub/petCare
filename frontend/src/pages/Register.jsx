@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../context/ToastContext';
-import { Mail, Lock, User, Phone, ArrowRight } from 'lucide-react';
+import { Mail, Lock, User, Phone, ArrowRight, Eye, EyeOff } from 'lucide-react';
 
 export const Register = () => {
   const [formData, setFormData] = useState({
@@ -13,8 +13,9 @@ export const Register = () => {
     phone: '',
     role: 'CUSTOMER',
   });
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { register, login } = useAuth();
+  const { register, login, logout } = useAuth();
   const { addToast } = useToast();
   const navigate = useNavigate();
 
@@ -22,13 +23,24 @@ export const Register = () => {
     e.preventDefault();
     setLoading(true);
     try {
+      logout(); // Clear any old sessions
       await register(formData);
       addToast('Account created successfully! Signing in...', 'success');
       // Auto login
       await login(formData.email, formData.password);
       navigate('/dashboard');
     } catch (err) {
-      const msg = err.response?.data?.email?.[0] || 'Registration failed. Please check inputs.';
+      const errorData = err.response?.data;
+      let msg = 'Registration failed. Please check inputs.';
+      if (typeof errorData === 'string') {
+        msg = errorData;
+      } else if (errorData?.detail) {
+        msg = errorData.detail;
+      } else if (errorData && typeof errorData === 'object') {
+        const firstKey = Object.keys(errorData)[0];
+        const val = errorData[firstKey];
+        msg = `${firstKey}: ${Array.isArray(val) ? val.join(', ') : val}`;
+      }
       addToast(msg, 'error');
     } finally {
       setLoading(false);
@@ -124,14 +136,22 @@ export const Register = () => {
               <div className="relative">
                 <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   required
                   minLength={6}
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   placeholder="At least 6 characters"
-                  className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                  className="w-full pl-10 pr-10 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none p-1"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
             </div>
 

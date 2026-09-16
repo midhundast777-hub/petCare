@@ -23,6 +23,7 @@ import MedicalList from './pages/Medical/MedicalList';
 import ServiceList from './pages/Services/ServiceList';
 import InvoiceList from './pages/Billing/InvoiceList';
 import ReportsPage from './pages/Reports/ReportsPage';
+import StaffList from './pages/Staff/StaffList';
 import Profile from './pages/Profile';
 import LoadingSpinner from './components/LoadingSpinner';
 
@@ -99,6 +100,9 @@ export function App() {
 
               {/* Reports */}
               <Route path="/reports" element={<ReportsPage />} />
+
+              {/* Staff Management (Admin) */}
+              <Route path="/staff" element={<StaffList />} />
 
               {/* Profile */}
               <Route path="/profile" element={<Profile />} />

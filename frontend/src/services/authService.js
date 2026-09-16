@@ -31,6 +31,16 @@ export const authService = {
     return response.data;
   },
 
+  createUser: async (userData) => {
+    const response = await api.post('/auth/users/', userData);
+    return response.data;
+  },
+
+  deleteUser: async (id) => {
+    const response = await api.delete(`/auth/users/${id}/`);
+    return response.data;
+  },
+
   logout: () => {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');

@@ -61,6 +61,7 @@ export const Sidebar = ({ isOpen, onClose }) => {
       { to: '/services', label: 'Services Catalog', icon: Scissors },
       { to: '/billing', label: 'Billing & Invoices', icon: Receipt },
       { to: '/reports', label: 'Reports & Analytics', icon: BarChart3 },
+      { to: '/staff', label: 'Staff Management', icon: UserCheck },
     ];
   };
 

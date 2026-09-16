@@ -40,6 +40,30 @@ class RegisterSerializer(serializers.ModelSerializer):
             )
         return user
 
+class AdminCreateUserSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, required=True, min_length=6)
+
+    class Meta:
+        model = User
+        fields = ('id', 'email', 'password', 'first_name', 'last_name', 'role', 'phone', 'avatar')
+
+    def create(self, validated_data):
+        role = validated_data.get('role', User.Role.STAFF)
+        is_staff = role in [User.Role.STAFF, User.Role.ADMIN]
+        is_superuser = role == User.Role.ADMIN
+        user = User.objects.create_user(
+            email=validated_data['email'],
+            password=validated_data['password'],
+            first_name=validated_data.get('first_name', ''),
+            last_name=validated_data.get('last_name', ''),
+            role=role,
+            phone=validated_data.get('phone', ''),
+            avatar=validated_data.get('avatar', ''),
+            is_staff=is_staff,
+            is_superuser=is_superuser,
+        )
+        return user
+
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     username_field = 'email'
 

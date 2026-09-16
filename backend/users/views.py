@@ -4,8 +4,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .models import User
-from .serializers import UserSerializer, RegisterSerializer, CustomTokenObtainPairSerializer
+from .serializers import UserSerializer, RegisterSerializer, CustomTokenObtainPairSerializer, AdminCreateUserSerializer
 from .permissions import IsAdminUserRole, IsStaffOrAdmin
+from rest_framework.exceptions import PermissionDenied
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
@@ -24,8 +25,18 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
         return self.request.user
 
 class UserListView(generics.ListCreateAPIView):
-    serializer_class = UserSerializer
     permission_classes = [IsStaffOrAdmin]
+
+    def get_serializer_class(self):
+        if self.request.method == 'POST':
+            return AdminCreateUserSerializer
+        return UserSerializer
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        if not (user.role == 'ADMIN' or user.is_superuser):
+            raise PermissionDenied("Only administrators can create staff or user accounts.")
+        serializer.save()
 
     def get_queryset(self):
         queryset = User.objects.all()
@@ -40,3 +51,8 @@ class UserListView(generics.ListCreateAPIView):
                 models.Q(last_name__icontains=search)
             )
         return queryset
+
+class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    permission_classes = [IsAdminUserRole]

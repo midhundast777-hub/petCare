@@ -236,12 +236,12 @@ Thank you.`;
 
           {/* Action CTAs */}
           <div className="flex items-center gap-3">
-            {/* Direct Link to Login / CRM Portal */}
+            {/* Direct Link to Login */}
             <Link 
               to="/login"
               className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full text-xs font-black uppercase tracking-wider text-slate-700 border border-slate-200 hover:bg-slate-100 hover:text-slate-900 transition"
             >
-              <span>{user ? 'CRM Portal' : 'Login'}</span>
+              <span>LOGIN</span>
             </Link>
 
             {/* Main Booking Anchor */}

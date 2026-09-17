@@ -5,6 +5,7 @@ import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../hooks/useAuth';
 import DataTable from '../../components/DataTable';
 import VaccinationModal from './VaccinationModal';
+import Modal from '../../components/Modal';
 import {
   Syringe,
   Plus,
@@ -16,7 +17,8 @@ import {
   Trash2,
   Dog,
   FileSpreadsheet,
-  Printer
+  Printer,
+  Eye
 } from 'lucide-react';
 
 export const VaccinationList = () => {
@@ -27,6 +29,7 @@ export const VaccinationList = () => {
   const [statusFilter, setStatusFilter] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingVaccination, setEditingVaccination] = useState(null);
+  const [viewingVaccination, setViewingVaccination] = useState(null);
 
   const fetchVaccinations = async () => {
     setLoading(true);
@@ -276,8 +279,17 @@ export const VaccinationList = () => {
       header: 'Actions',
       className: 'text-right',
       render: (row) => (
-        <div className="flex items-center justify-end gap-1.5">
-          {!isAdmin ? (
+        <div className="flex items-center justify-end gap-1.5 flex-wrap">
+          <button
+            onClick={() => setViewingVaccination(row)}
+            title="View Vaccination Details"
+            className="flex items-center gap-1.5 px-2.5 py-1 bg-brand-50 hover:bg-brand-100 text-brand-700 rounded-lg text-xs font-bold transition-colors shadow-xs"
+          >
+            <Eye className="w-3.5 h-3.5" />
+            <span>View</span>
+          </button>
+
+          {!isAdmin && (
             <>
               <button
                 onClick={() => {
@@ -297,10 +309,6 @@ export const VaccinationList = () => {
                 <Trash2 className="w-4 h-4" />
               </button>
             </>
-          ) : (
-            <span className="text-[11px] font-semibold text-slate-400 italic px-2 py-0.5 bg-slate-50 border border-slate-200 rounded">
-              View Only
-            </span>
           )}
         </div>
       ),
@@ -410,6 +418,94 @@ export const VaccinationList = () => {
           vaccination={editingVaccination}
           onSaved={fetchVaccinations}
         />
+      )}
+
+      {/* View Vaccination Details Modal */}
+      {viewingVaccination && (
+        <Modal
+          isOpen={!!viewingVaccination}
+          onClose={() => setViewingVaccination(null)}
+          title={`Vaccine Record: ${viewingVaccination.vaccine_name || ''}`}
+          subtitle="Official patient immunization and certification details"
+          maxWidth="max-w-xl"
+        >
+          <div className="space-y-4 text-xs">
+            <div className="grid grid-cols-2 gap-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status</p>
+                <div className="mt-1">
+                  {statusBadge(viewingVaccination.status, viewingVaccination.days_until_expiry)}
+                </div>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Days Remaining</p>
+                <p className="text-sm font-black text-slate-900 mt-1">
+                  {viewingVaccination.days_until_expiry > 0 ? `${viewingVaccination.days_until_expiry} Days` : 'Expired'}
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="p-3.5 bg-white rounded-xl border border-slate-200 space-y-1">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pet Patient</p>
+                <p className="font-bold text-slate-900 text-sm">{viewingVaccination.pet_name}</p>
+                <p className="text-slate-500">{viewingVaccination.pet_species || 'Pet'}</p>
+              </div>
+
+              <div className="p-3.5 bg-white rounded-xl border border-slate-200 space-y-1">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pet Parent / Owner</p>
+                <p className="font-bold text-slate-900 text-sm">{viewingVaccination.owner_name}</p>
+                <p className="text-slate-500">Contact verified on registry</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="p-3.5 bg-white rounded-xl border border-slate-200 space-y-1">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Given / Administered Date</p>
+                <p className="font-bold text-slate-900">{viewingVaccination.vaccination_date}</p>
+              </div>
+
+              <div className="p-3.5 bg-white rounded-xl border border-slate-200 space-y-1">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Renewal / Expiry Date</p>
+                <p className="font-bold text-slate-900">{viewingVaccination.expiry_date}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="p-3.5 bg-white rounded-xl border border-slate-200 space-y-1">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Certificate Number</p>
+                <p className="font-mono font-bold text-slate-800">{viewingVaccination.certificate_number || '—'}</p>
+              </div>
+
+              <div className="p-3.5 bg-white rounded-xl border border-slate-200 space-y-1">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Batch / Lot Number</p>
+                <p className="font-mono font-bold text-slate-800">{viewingVaccination.lot_number || '—'}</p>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-white rounded-xl border border-slate-200 space-y-1">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Administering Veterinarian</p>
+              <p className="font-medium text-slate-800">{viewingVaccination.veterinarian || 'Licensed Veterinary Specialist'}</p>
+            </div>
+
+            {viewingVaccination.notes && (
+              <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Clinical Notes</p>
+                <p className="text-slate-700">{viewingVaccination.notes}</p>
+              </div>
+            )}
+
+            <div className="flex justify-end pt-2">
+              <button
+                type="button"
+                onClick={() => setViewingVaccination(null)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   );

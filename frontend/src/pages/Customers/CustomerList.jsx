@@ -133,9 +133,10 @@ export const CustomerList = () => {
           <Link
             to={`/customers/${row.id}`}
             title="View 360 Profile"
-            className="p-1.5 text-slate-500 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-50 hover:bg-brand-100 text-brand-700 rounded-lg text-xs font-bold transition-colors shadow-xs"
           >
-            <Eye className="w-4 h-4" />
+            <Eye className="w-3.5 h-3.5" />
+            <span>View</span>
           </Link>
           {!isAdmin && (
             <>

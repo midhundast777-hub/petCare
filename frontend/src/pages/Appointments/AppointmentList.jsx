@@ -4,6 +4,7 @@ import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../hooks/useAuth';
 import DataTable from '../../components/DataTable';
 import AppointmentModal from './AppointmentModal';
+import Modal from '../../components/Modal';
 import {
   Calendar,
   Clock,
@@ -15,7 +16,8 @@ import {
   Edit2,
   Trash2,
   ListFilter,
-  CalendarDays
+  CalendarDays,
+  Eye
 } from 'lucide-react';
 
 export const AppointmentList = () => {
@@ -25,9 +27,10 @@ export const AppointmentList = () => {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
   const [dateFilter, setDateFilter] = useState('');
-  const [viewMode, setViewMode] = useState('list'); // 'list' or 'calendar'
+  const [viewMode, setViewMode] = useState('list'); // 'list' or 'schedule'
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState(null);
+  const [viewingAppointment, setViewingAppointment] = useState(null);
 
   const fetchAppointments = async () => {
     setLoading(true);
@@ -137,8 +140,17 @@ export const AppointmentList = () => {
       header: 'Actions',
       className: 'text-right',
       render: (row) => (
-        <div className="flex items-center justify-end gap-1">
-          {!isAdmin ? (
+        <div className="flex items-center justify-end gap-1.5 flex-wrap">
+          <button
+            onClick={() => setViewingAppointment(row)}
+            title="View Appointment Details"
+            className="flex items-center gap-1.5 px-2.5 py-1 bg-brand-50 hover:bg-brand-100 text-brand-700 rounded-lg text-xs font-bold transition-colors shadow-xs"
+          >
+            <Eye className="w-3.5 h-3.5" />
+            <span>View</span>
+          </button>
+
+          {!isAdmin && (
             <>
               {row.status === 'PENDING' && isStaff && (
                 <button
@@ -201,8 +213,6 @@ export const AppointmentList = () => {
                 <Edit2 className="w-4 h-4" />
               </button>
             </>
-          ) : (
-            <span className="text-xs text-slate-400 font-medium italic">View only</span>
           )}
         </div>
       ),
@@ -338,15 +348,25 @@ export const AppointmentList = () => {
 
               <div className="pt-2 flex items-center justify-between">
                 <span className="text-sm font-black text-brand-700">${parseFloat(apt.amount).toFixed(2)}</span>
-                <button
-                  onClick={() => {
-                    setEditingAppointment(apt);
-                    setIsModalOpen(true);
-                  }}
-                  className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-bold transition-colors"
-                >
-                  Manage
-                </button>
+                {isAdmin ? (
+                  <button
+                    onClick={() => setViewingAppointment(apt)}
+                    className="flex items-center gap-1 px-3 py-1 bg-brand-50 hover:bg-brand-100 text-brand-700 rounded-lg text-xs font-bold transition-colors shadow-xs"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>View</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setEditingAppointment(apt);
+                      setIsModalOpen(true);
+                    }}
+                    className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-bold transition-colors"
+                  >
+                    Manage
+                  </button>
+                )}
               </div>
             </div>
           ))}
@@ -356,6 +376,80 @@ export const AppointmentList = () => {
             </div>
           )}
         </div>
+      )}
+
+      {/* View Appointment Details Modal */}
+      {viewingAppointment && (
+        <Modal
+          isOpen={!!viewingAppointment}
+          onClose={() => setViewingAppointment(null)}
+          title={`Appointment Details: ${viewingAppointment.appointment_id || ''}`}
+          subtitle="Complete appointment scheduling & visit information"
+          maxWidth="max-w-xl"
+        >
+          <div className="space-y-4 text-xs">
+            <div className="grid grid-cols-2 gap-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status</p>
+                <div className="mt-1">{statusBadge(viewingAppointment.status)}</div>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Service Fee</p>
+                <p className="text-sm font-black text-slate-900 mt-1">${parseFloat(viewingAppointment.amount || 0).toFixed(2)}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="p-3.5 bg-white rounded-xl border border-slate-200 space-y-1">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pet Patient</p>
+                <p className="font-bold text-slate-900 text-sm">{viewingAppointment.pet_name}</p>
+                <p className="text-slate-500">{viewingAppointment.pet_species || 'Pet'}</p>
+              </div>
+
+              <div className="p-3.5 bg-white rounded-xl border border-slate-200 space-y-1">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pet Parent / Owner</p>
+                <p className="font-bold text-slate-900 text-sm">{viewingAppointment.customer_name}</p>
+                <p className="text-slate-500">{viewingAppointment.customer_phone || viewingAppointment.customer_email || '—'}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="p-3.5 bg-white rounded-xl border border-slate-200 space-y-1">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Service Scheduled</p>
+                <p className="font-bold text-slate-900">{viewingAppointment.service_name}</p>
+                <p className="text-slate-500">Duration: {viewingAppointment.service_duration || 30} mins</p>
+              </div>
+
+              <div className="p-3.5 bg-white rounded-xl border border-slate-200 space-y-1">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Date & Time</p>
+                <p className="font-bold text-slate-900">{viewingAppointment.date}</p>
+                <p className="text-slate-500">{viewingAppointment.start_time} - {viewingAppointment.end_time}</p>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-white rounded-xl border border-slate-200 space-y-1">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Assigned Specialist</p>
+              <p className="font-medium text-slate-800">{viewingAppointment.staff_name || 'General Clinic Staff'}</p>
+            </div>
+
+            {viewingAppointment.notes && (
+              <div className="p-3.5 bg-amber-50/60 rounded-xl border border-amber-200 space-y-1">
+                <p className="text-[10px] font-bold text-amber-800 uppercase tracking-wider">Special Instructions / Notes</p>
+                <p className="text-slate-700">{viewingAppointment.notes}</p>
+              </div>
+            )}
+
+            <div className="flex justify-end pt-2">
+              <button
+                type="button"
+                onClick={() => setViewingAppointment(null)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </Modal>
       )}
 
       {/* Appointment Modal */}

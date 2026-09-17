@@ -19,7 +19,8 @@ import {
   User,
   ShieldCheck,
   CheckCircle2,
-  Sparkles
+  Sparkles,
+  Eye
 } from 'lucide-react';
 
 export const BoardingList = () => {
@@ -33,6 +34,7 @@ export const BoardingList = () => {
   // Modals
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [editingBooking, setEditingBooking] = useState(null);
+  const [viewingBooking, setViewingBooking] = useState(null);
 
   // Digital Checklist modal
   const [checklistTarget, setChecklistTarget] = useState(null);
@@ -186,6 +188,26 @@ export const BoardingList = () => {
       className: 'text-right',
       render: (row) => (
         <div className="flex items-center justify-end gap-1.5 flex-wrap">
+          {/* View Stay Details */}
+          <button
+            onClick={() => setViewingBooking(row)}
+            title="View Stay Details"
+            className="flex items-center gap-1.5 px-2.5 py-1 bg-brand-50 hover:bg-brand-100 text-brand-700 rounded-lg text-xs font-bold transition-colors shadow-xs"
+          >
+            <Eye className="w-3.5 h-3.5" />
+            <span>View</span>
+          </button>
+
+          {/* Daily Care Logs */}
+          <button
+            onClick={() => openCareLogs(row)}
+            title="View Daily Care Logs"
+            className="flex items-center gap-1 px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition-colors"
+          >
+            <Activity className="w-3.5 h-3.5 text-brand-600" />
+            <span>Care Logs</span>
+          </button>
+
           {/* Digital Check-In Button */}
           {row.status === 'RESERVED' && !isAdmin && isStaff && (
             <button
@@ -208,15 +230,6 @@ export const BoardingList = () => {
             </button>
           )}
 
-          {/* Daily Care Logs */}
-          <button
-            onClick={() => openCareLogs(row)}
-            title="Daily Care Logs"
-            className="p-1.5 text-slate-600 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors"
-          >
-            <Activity className="w-4 h-4" />
-          </button>
-
           {!isAdmin && (
             <button
               onClick={() => {
@@ -238,12 +251,6 @@ export const BoardingList = () => {
             >
               <Trash2 className="w-4 h-4" />
             </button>
-          )}
-
-          {isAdmin && (
-            <span className="text-[11px] font-semibold text-slate-400 italic px-2 py-0.5 bg-slate-50 border border-slate-200 rounded">
-              View Only
-            </span>
           )}
         </div>
       ),
@@ -458,6 +465,96 @@ export const BoardingList = () => {
               {careLogs.length === 0 && (
                 <p className="text-xs text-slate-400 text-center py-4">No care logs recorded for this stay yet.</p>
               )}
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* View Stay Details Modal */}
+      {viewingBooking && (
+        <Modal
+          isOpen={!!viewingBooking}
+          onClose={() => setViewingBooking(null)}
+          title={`Boarding Stay: ${viewingBooking.booking_id || ''}`}
+          subtitle="Complete kennel reservation & boarding profile"
+          maxWidth="max-w-xl"
+        >
+          <div className="space-y-4 text-xs">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status</p>
+                <div className="mt-1">{statusBadge(viewingBooking.status)}</div>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Kennel / Room</p>
+                <p className="text-sm font-black text-brand-700 mt-1">
+                  {viewingBooking.room_number ? `Room ${viewingBooking.room_number}` : 'Standard Suite'}
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Amount</p>
+                <p className="text-sm font-black text-slate-900 mt-1">
+                  ${parseFloat(viewingBooking.total_cost || 0).toFixed(2)}
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="p-3.5 bg-white rounded-xl border border-slate-200 space-y-1">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pet Guest</p>
+                <p className="font-bold text-slate-900 text-sm">{viewingBooking.pet_name}</p>
+                <p className="text-slate-500">{viewingBooking.pet_species || 'Dog'} • {viewingBooking.package || 'Standard Package'}</p>
+              </div>
+
+              <div className="p-3.5 bg-white rounded-xl border border-slate-200 space-y-1">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pet Parent / Owner</p>
+                <p className="font-bold text-slate-900 text-sm">{viewingBooking.customer_name}</p>
+                <p className="text-slate-500">Emergency: {viewingBooking.emergency_contact_phone || 'On file'}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="p-3.5 bg-white rounded-xl border border-slate-200 space-y-1">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Check-In Date</p>
+                <p className="font-bold text-slate-900">{viewingBooking.check_in_date}</p>
+                <p className="text-[11px] text-slate-400">{viewingBooking.actual_check_in_time ? `Checked in: ${viewingBooking.actual_check_in_time}` : 'Pending Check-In'}</p>
+              </div>
+
+              <div className="p-3.5 bg-white rounded-xl border border-slate-200 space-y-1">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Expected Check-Out</p>
+                <p className="font-bold text-slate-900">{viewingBooking.expected_check_out_date}</p>
+                <p className="text-[11px] text-slate-400">{viewingBooking.actual_check_out_time ? `Checked out: ${viewingBooking.actual_check_out_time}` : 'Active Stay'}</p>
+              </div>
+            </div>
+
+            {viewingBooking.special_instructions && (
+              <div className="p-3.5 bg-amber-50/60 rounded-xl border border-amber-200 space-y-1">
+                <p className="text-[10px] font-bold text-amber-800 uppercase tracking-wider">Dietary, Medication & Special Instructions</p>
+                <p className="text-slate-700">{viewingBooking.special_instructions}</p>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const target = viewingBooking;
+                  setViewingBooking(null);
+                  openCareLogs(target);
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-brand-50 text-slate-700 hover:text-brand-700 font-bold rounded-xl transition-colors"
+              >
+                <Activity className="w-4 h-4 text-brand-600" />
+                <span>Open Care Logs</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setViewingBooking(null)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors"
+              >
+                Close
+              </button>
             </div>
           </div>
         </Modal>

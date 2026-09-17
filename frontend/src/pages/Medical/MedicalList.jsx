@@ -5,6 +5,7 @@ import { useAuth } from '../../hooks/useAuth';
 import MedicalRecordModal from './MedicalRecordModal';
 import MedicationModal from './MedicationModal';
 import FeedingModal from './FeedingModal';
+import Modal from '../../components/Modal';
 import {
   Stethoscope,
   Pill,
@@ -15,7 +16,8 @@ import {
   Dog,
   Calendar,
   Trash2,
-  Activity
+  Activity,
+  Eye
 } from 'lucide-react';
 
 export const MedicalList = () => {
@@ -32,6 +34,11 @@ export const MedicalList = () => {
   const [isRecordModalOpen, setIsRecordModalOpen] = useState(false);
   const [isMedModalOpen, setIsMedModalOpen] = useState(false);
   const [isFeedModalOpen, setIsFeedModalOpen] = useState(false);
+
+  // View Details Modals (Admin & Staff read-only view)
+  const [viewingMedication, setViewingMedication] = useState(null);
+  const [viewingFeeding, setViewingFeeding] = useState(null);
+  const [viewingRecord, setViewingRecord] = useState(null);
 
   const fetchAll = async () => {
     setLoading(true);
@@ -90,38 +97,40 @@ export const MedicalList = () => {
           </p>
         </div>
 
-        {/* Tab-specific action button */}
-        <div className="flex items-center gap-2">
-          {activeTab === 'medications' && (
-            <button
-              onClick={() => setIsMedModalOpen(true)}
-              className="flex items-center gap-1.5 px-4 py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-bold shadow-sm transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Add Medication</span>
-            </button>
-          )}
+        {/* Tab-specific action button - Staff Only */}
+        {!isAdmin && isStaff && (
+          <div className="flex items-center gap-2">
+            {activeTab === 'medications' && (
+              <button
+                onClick={() => setIsMedModalOpen(true)}
+                className="flex items-center gap-1.5 px-4 py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-bold shadow-sm transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add Medication</span>
+              </button>
+            )}
 
-          {activeTab === 'feeding' && (
-            <button
-              onClick={() => setIsFeedModalOpen(true)}
-              className="flex items-center gap-1.5 px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold shadow-sm transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Add Feeding Schedule</span>
-            </button>
-          )}
+            {activeTab === 'feeding' && (
+              <button
+                onClick={() => setIsFeedModalOpen(true)}
+                className="flex items-center gap-1.5 px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold shadow-sm transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add Feeding Schedule</span>
+              </button>
+            )}
 
-          {activeTab === 'records' && (
-            <button
-              onClick={() => setIsRecordModalOpen(true)}
-              className="flex items-center gap-1.5 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              <span>New Medical Visit</span>
-            </button>
-          )}
-        </div>
+            {activeTab === 'records' && (
+              <button
+                onClick={() => setIsRecordModalOpen(true)}
+                className="flex items-center gap-1.5 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                <span>New Medical Visit</span>
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Tabs */}
@@ -195,12 +204,16 @@ export const MedicalList = () => {
               </div>
 
               {/* Administration History & Quick Action */}
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-[10px] text-slate-400">
-                  {med.administration_logs?.length || 0} doses logged
-                </span>
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2 flex-wrap">
+                <button
+                  onClick={() => setViewingMedication(med)}
+                  className="flex items-center gap-1 px-2.5 py-1 bg-sky-50 hover:bg-sky-100 text-sky-700 rounded-lg text-xs font-bold transition-colors shadow-xs"
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  <span>View Details</span>
+                </button>
 
-                {isStaff && med.status === 'ACTIVE' && (
+                {!isAdmin && isStaff && med.status === 'ACTIVE' && (
                   <button
                     onClick={() => handleAdministerDose(med.id, med.medicine_name)}
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-bold shadow-sm transition-colors"
@@ -249,12 +262,16 @@ export const MedicalList = () => {
                 )}
               </div>
 
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-[10px] text-slate-400">
-                  {feed.last_fed_at ? `Fed at ${new Date(feed.last_fed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Not yet fed today'}
-                </span>
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2 flex-wrap">
+                <button
+                  onClick={() => setViewingFeeding(feed)}
+                  className="flex items-center gap-1 px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded-lg text-xs font-bold transition-colors shadow-xs"
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  <span>View Schedule</span>
+                </button>
 
-                {isStaff && (
+                {!isAdmin && isStaff && (
                   <button
                     onClick={() => handleMarkFed(feed.id, feed.food_type)}
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold shadow-sm transition-colors"
@@ -300,8 +317,15 @@ export const MedicalList = () => {
                   </p>
                 </div>
 
-                <div className="text-right shrink-0">
+                <div className="flex flex-col sm:items-end justify-between gap-2 shrink-0">
                   <span className="text-xs font-bold text-slate-700">{rec.visit_date}</span>
+                  <button
+                    onClick={() => setViewingRecord(rec)}
+                    className="flex items-center gap-1 px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-lg text-xs font-bold transition-colors shadow-xs"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>View Record</span>
+                  </button>
                 </div>
               </div>
             ))}
@@ -337,6 +361,155 @@ export const MedicalList = () => {
           onClose={() => setIsRecordModalOpen(false)}
           onSaved={fetchAll}
         />
+      )}
+
+      {/* View Medication Details Modal */}
+      {viewingMedication && (
+        <Modal
+          isOpen={!!viewingMedication}
+          onClose={() => setViewingMedication(null)}
+          title={`Medication Details: ${viewingMedication.medicine_name || ''}`}
+          subtitle="Prescription dosage, administration instructions & logs"
+          maxWidth="max-w-lg"
+        >
+          <div className="space-y-4 text-xs">
+            <div className="grid grid-cols-2 gap-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status</p>
+                <span className={`inline-block mt-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                  viewingMedication.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'
+                }`}>
+                  {viewingMedication.status}
+                </span>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Dosage & Frequency</p>
+                <p className="text-sm font-bold text-slate-900 mt-1">{viewingMedication.dosage} • {viewingMedication.frequency}</p>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-white rounded-xl border border-slate-200 space-y-1">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pet Patient</p>
+              <p className="font-bold text-slate-900 text-sm">{viewingMedication.pet_name} ({viewingMedication.pet_species})</p>
+            </div>
+
+            {viewingMedication.instructions && (
+              <div className="p-3.5 bg-sky-50/60 rounded-xl border border-sky-200 space-y-1">
+                <p className="text-[10px] font-bold text-sky-900 uppercase tracking-wider">Veterinary Instructions</p>
+                <p className="text-slate-700">{viewingMedication.instructions}</p>
+              </div>
+            )}
+
+            <div className="flex justify-end pt-2">
+              <button
+                type="button"
+                onClick={() => setViewingMedication(null)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* View Feeding Schedule Modal */}
+      {viewingFeeding && (
+        <Modal
+          isOpen={!!viewingFeeding}
+          onClose={() => setViewingFeeding(null)}
+          title={`Feeding Schedule: ${viewingFeeding.pet_name || ''}`}
+          subtitle="Daily meal schedule, diet type, and special portion instructions"
+          maxWidth="max-w-lg"
+        >
+          <div className="space-y-4 text-xs">
+            <div className="grid grid-cols-2 gap-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Diet / Food Type</p>
+                <p className="text-sm font-bold text-slate-900 mt-1">{viewingFeeding.food_type}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Portion & Time</p>
+                <p className="text-sm font-bold text-slate-900 mt-1">{viewingFeeding.quantity} at {viewingFeeding.feeding_time}</p>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-white rounded-xl border border-slate-200 space-y-1">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Last Feeding Status</p>
+              <p className="font-semibold text-slate-800">
+                {viewingFeeding.last_fed_at ? `Last fed at ${new Date(viewingFeeding.last_fed_at).toLocaleString()}` : 'No feeding recorded today yet'}
+              </p>
+            </div>
+
+            {viewingFeeding.special_instructions && (
+              <div className="p-3.5 bg-amber-50/60 rounded-xl border border-amber-200 space-y-1">
+                <p className="text-[10px] font-bold text-amber-900 uppercase tracking-wider">Special Dietary Instructions</p>
+                <p className="text-slate-700">{viewingFeeding.special_instructions}</p>
+              </div>
+            )}
+
+            <div className="flex justify-end pt-2">
+              <button
+                type="button"
+                onClick={() => setViewingFeeding(null)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* View Veterinary Record Modal */}
+      {viewingRecord && (
+        <Modal
+          isOpen={!!viewingRecord}
+          onClose={() => setViewingRecord(null)}
+          title={`Veterinary Record: ${viewingRecord.diagnosis || 'Clinical Examination'}`}
+          subtitle={`Pet: ${viewingRecord.pet_name || ''} • Visit Date: ${viewingRecord.visit_date || ''}`}
+          maxWidth="max-w-xl"
+        >
+          <div className="space-y-4 text-xs">
+            <div className="grid grid-cols-2 gap-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pet Patient</p>
+                <p className="font-bold text-slate-900 mt-1">{viewingRecord.pet_name}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Attending Veterinarian</p>
+                <p className="font-bold text-slate-900 mt-1">{viewingRecord.veterinarian}</p>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-white rounded-xl border border-slate-200 space-y-1">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Clinical Diagnosis</p>
+              <p className="font-bold text-slate-900 text-sm">{viewingRecord.diagnosis}</p>
+            </div>
+
+            <div className="p-3.5 bg-white rounded-xl border border-slate-200 space-y-1">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Treatment Administered</p>
+              <p className="text-slate-700">{viewingRecord.treatment}</p>
+            </div>
+
+            {viewingRecord.prescription && (
+              <div className="p-3.5 bg-emerald-50/60 rounded-xl border border-emerald-200 space-y-1">
+                <p className="text-[10px] font-bold text-emerald-900 uppercase tracking-wider">Prescription & Home Care</p>
+                <p className="text-slate-700">{viewingRecord.prescription}</p>
+              </div>
+            )}
+
+            <div className="flex justify-end pt-2">
+              <button
+                type="button"
+                onClick={() => setViewingRecord(null)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   );

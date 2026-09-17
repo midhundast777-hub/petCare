@@ -69,7 +69,7 @@ Thank you.`;
   const handleOnlineSubmit = async (e) => {
     e.preventDefault();
     if (!formData.ownerName || !formData.phone || !formData.dogName || !formData.dropOffDate) {
-      addToast('Please fill in all required fields (Owner Name, Phone, Dog Name, Drop-off Date)', 'error');
+      addToast('Please fill in all required fields (Owner Name, Phone, Pet Name, Drop-off Date)', 'error');
       return;
     }
 
@@ -681,10 +681,10 @@ Thank you.`;
                       />
                     </div>
 
-                    {/* Dog Name */}
+                    {/* Pet Name */}
                     <div>
                       <label className="block text-xs font-extrabold text-slate-900 uppercase tracking-wider mb-2">
-                        Dog Name <span className="text-rose-500 font-bold">*</span>
+                        Pet Name <span className="text-rose-500 font-bold">*</span>
                       </label>
                       <input 
                         type="text"

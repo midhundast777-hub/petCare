@@ -93,7 +93,7 @@ export const Login = () => {
               disabled={loading}
               className="w-full mt-2 flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded-xl shadow-md text-sm font-bold text-white bg-brand-600 hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-500 transition-colors disabled:opacity-50"
             >
-              <span>{loading ? 'Authenticating...' : 'Sign In to Dashboard'}</span>
+              <span>{loading ? 'Authenticating...' : 'Sign in'}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>

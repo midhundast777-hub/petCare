@@ -160,7 +160,7 @@ export const Register = () => {
               disabled={loading}
               className="w-full mt-3 flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded-xl shadow-md text-sm font-bold text-white bg-brand-600 hover:bg-brand-700 focus:outline-none transition-colors disabled:opacity-50"
             >
-              <span>{loading ? 'Creating account...' : 'Complete Registration'}</span>
+              <span>{loading ? 'Creating account...' : 'Register'}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>

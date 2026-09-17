@@ -726,7 +726,7 @@ Thank you.`;
                       rel="noreferrer"
                       className="block w-full py-4 px-6 rounded-2xl bg-brand-600 hover:bg-brand-700 text-white text-center font-black text-base uppercase tracking-[0.08em] shadow-lg shadow-brand-500/30 transition transform hover:-translate-y-0.5"
                     >
-                      Send Enquiry via WhatsApp
+                      Submit
                     </a>
                   </div>
 

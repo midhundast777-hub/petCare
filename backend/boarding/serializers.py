@@ -16,7 +16,7 @@ class DailyCareLogSerializer(serializers.ModelSerializer):
     class Meta:
         model = DailyCareLog
         fields = ('id', 'booking', 'care_type', 'notes', 'staff', 'staff_name', 'logged_at')
-        read_only_fields = ('id', 'logged_at')
+        read_only_fields = ('id', 'booking', 'staff', 'logged_at')
 
 class BoardingChecklistSerializer(serializers.ModelSerializer):
     checkin_staff_name = serializers.ReadOnlyField(source='checkin_staff.full_name')

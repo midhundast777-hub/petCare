@@ -184,6 +184,16 @@ class BoardingBookingDetailView(generics.RetrieveUpdateDestroyAPIView):
             return BoardingBooking.objects.filter(customer__user=user)
         return BoardingBooking.objects.all()
 
+    def perform_update(self, serializer):
+        booking = serializer.save()
+        if booking.room:
+            if booking.status == BoardingBooking.Status.CHECKED_IN:
+                booking.room.status = Room.Status.OCCUPIED
+                booking.room.save(update_fields=['status'])
+            elif booking.status in [BoardingBooking.Status.CHECKED_OUT, BoardingBooking.Status.CANCELLED]:
+                booking.room.status = Room.Status.AVAILABLE
+                booking.room.save(update_fields=['status'])
+
 class BoardingChecklistView(APIView):
     permission_classes = [IsStaffOrAdmin]
 
@@ -241,9 +251,15 @@ class DailyCareLogListCreateView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         booking_id = self.kwargs.get('booking_id')
-        return DailyCareLog.objects.filter(booking_id=booking_id)
+        try:
+            return DailyCareLog.objects.filter(Q(booking_id=booking_id) | Q(booking__booking_id=booking_id))
+        except Exception:
+            return DailyCareLog.objects.filter(booking__booking_id=booking_id)
 
     def perform_create(self, serializer):
         booking_id = self.kwargs.get('booking_id')
-        booking = BoardingBooking.objects.get(id=booking_id)
+        try:
+            booking = BoardingBooking.objects.get(id=booking_id)
+        except (BoardingBooking.DoesNotExist, ValueError):
+            booking = BoardingBooking.objects.get(booking_id=booking_id)
         serializer.save(booking=booking, staff=self.request.user)

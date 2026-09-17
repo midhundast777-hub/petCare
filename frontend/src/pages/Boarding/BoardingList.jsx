@@ -87,6 +87,23 @@ export const BoardingList = () => {
     }
   };
 
+  const handleQuickStatusChange = async (booking, newStatus) => {
+    try {
+      await boardingService.updateBooking(booking.id, { status: newStatus });
+      const label =
+        newStatus === 'CHECKED_IN'
+          ? 'Checked In (Active Stay)'
+          : newStatus === 'CHECKED_OUT'
+          ? 'Checked Out (Completed)'
+          : 'Reserved (Awaiting Arrival)';
+      addToast(`Stay ${booking.booking_id} updated to ${label}!`, 'success');
+      fetchBoardingData();
+    } catch (err) {
+      console.error(err);
+      addToast('Failed to update stay status', 'error');
+    }
+  };
+
   const handleAddCareLog = async (e) => {
     e.preventDefault();
     if (!careNotes.trim() || !careLogTarget) return;
@@ -96,13 +113,15 @@ export const BoardingList = () => {
         care_type: careType,
         notes: careNotes,
       });
-      addToast('Daily care log recorded!', 'success');
+      addToast('Daily care log recorded successfully!', 'success');
       setCareNotes('');
       // Refresh logs
       const logs = await boardingService.getCareLogs(careLogTarget.id);
       setCareLogs(Array.isArray(logs) ? logs : logs.results || []);
     } catch (err) {
-      addToast('Failed to save care log', 'error');
+      console.error(err);
+      const msg = err.response?.data?.notes?.[0] || err.response?.data?.error || 'Failed to save care log';
+      addToast(msg, 'error');
     } finally {
       setLoggingCare(false);
     }
@@ -121,15 +140,48 @@ export const BoardingList = () => {
   };
 
   const statusBadge = (status) => {
-    const styles = {
-      RESERVED: 'bg-amber-100 text-amber-800 border-amber-200',
-      CHECKED_IN: 'bg-indigo-100 text-indigo-800 border-indigo-200',
-      CHECKED_OUT: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-      CANCELLED: 'bg-rose-100 text-rose-800 border-rose-200',
-    };
+    if (status === 'RESERVED') {
+      return (
+        <div>
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-200 shadow-xs">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+            Reserved
+          </span>
+          <span className="block text-[10px] text-amber-700/80 font-bold mt-1">
+            Awaiting Check-in
+          </span>
+        </div>
+      );
+    }
+    if (status === 'CHECKED_IN') {
+      return (
+        <div>
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-indigo-100 text-indigo-800 border border-indigo-200 shadow-xs">
+            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+            Checked In
+          </span>
+          <span className="block text-[10px] text-indigo-700 font-bold mt-1">
+            Active Guest
+          </span>
+        </div>
+      );
+    }
+    if (status === 'CHECKED_OUT') {
+      return (
+        <div>
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-200 shadow-xs">
+            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+            Checked Out
+          </span>
+          <span className="block text-[10px] text-emerald-700 font-bold mt-1">
+            Stay Completed (Saved)
+          </span>
+        </div>
+      );
+    }
     return (
-      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${styles[status] || styles.RESERVED}`}>
-        {status.replace('_', ' ')}
+      <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-rose-100 text-rose-800 border border-rose-200">
+        Cancelled
       </span>
     );
   };
@@ -192,7 +244,7 @@ export const BoardingList = () => {
           <button
             onClick={() => setViewingBooking(row)}
             title="View Stay Details"
-            className="flex items-center gap-1.5 px-2.5 py-1 bg-brand-50 hover:bg-brand-100 text-brand-700 rounded-lg text-xs font-bold transition-colors shadow-xs"
+            className="flex items-center gap-1.5 px-2.5 py-1 bg-brand-50 hover:bg-brand-100 text-brand-700 rounded-lg text-xs font-bold transition-colors shadow-xs cursor-pointer"
           >
             <Eye className="w-3.5 h-3.5" />
             <span>View</span>
@@ -202,31 +254,63 @@ export const BoardingList = () => {
           <button
             onClick={() => openCareLogs(row)}
             title="View Daily Care Logs"
-            className="flex items-center gap-1 px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition-colors"
+            className="flex items-center gap-1 px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
           >
             <Activity className="w-3.5 h-3.5 text-brand-600" />
             <span>Care Logs</span>
           </button>
 
-          {/* Digital Check-In Button */}
+          {/* For RESERVED: Check-In Option */}
           {row.status === 'RESERVED' && !isAdmin && isStaff && (
-            <button
-              onClick={() => openChecklist(row, 'checkin')}
-              className="flex items-center gap-1 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-sm transition-colors"
-            >
-              <LogIn className="w-3.5 h-3.5" />
-              <span>Digital Check-In</span>
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => handleQuickStatusChange(row, 'CHECKED_IN')}
+                title="Direct Check-In for this pet upon arrival"
+                className="flex items-center gap-1 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-sm transition-colors cursor-pointer"
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                <span>Check In</span>
+              </button>
+              <button
+                onClick={() => openChecklist(row, 'checkin')}
+                title="Intake Verification Protocol Checklist"
+                className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-lg text-[11px] font-bold transition-colors cursor-pointer"
+              >
+                Checklist
+              </button>
+            </div>
           )}
 
-          {/* Digital Check-Out Button */}
+          {/* For CHECKED_IN: Check-Out Option */}
           {row.status === 'CHECKED_IN' && !isAdmin && isStaff && (
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => handleQuickStatusChange(row, 'CHECKED_OUT')}
+                title="Direct Check-Out (complete stay)"
+                className="flex items-center gap-1 px-2.5 py-1 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-bold shadow-sm transition-colors cursor-pointer"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>Check Out</span>
+              </button>
+              <button
+                onClick={() => openChecklist(row, 'checkout')}
+                title="Departure Verification Protocol Checklist"
+                className="px-2 py-1 bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-200 rounded-lg text-[11px] font-bold transition-colors cursor-pointer"
+              >
+                Checklist
+              </button>
+            </div>
+          )}
+
+          {/* For CHECKED_OUT: Option to Check In (re-check in / re-open stay) */}
+          {row.status === 'CHECKED_OUT' && !isAdmin && isStaff && (
             <button
-              onClick={() => openChecklist(row, 'checkout')}
-              className="flex items-center gap-1 px-2.5 py-1 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-bold shadow-sm transition-colors"
+              onClick={() => handleQuickStatusChange(row, 'CHECKED_IN')}
+              title="Re-check in this pet (stay remains permanently saved in records)"
+              className="flex items-center gap-1 px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 rounded-lg text-xs font-bold shadow-xs transition-colors cursor-pointer"
             >
-              <LogOut className="w-3.5 h-3.5" />
-              <span>Digital Check-Out</span>
+              <LogIn className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Check In</span>
             </button>
           )}
 
@@ -237,7 +321,7 @@ export const BoardingList = () => {
                 setIsBookingModalOpen(true);
               }}
               title="Edit Stay"
-              className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
+              className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
             >
               <Edit2 className="w-4 h-4" />
             </button>
@@ -247,7 +331,7 @@ export const BoardingList = () => {
             <button
               onClick={() => handleDeleteBooking(row.id, row.booking_id)}
               title="Cancel / Delete Stay"
-              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
             >
               <Trash2 className="w-4 h-4" />
             </button>
@@ -338,6 +422,71 @@ export const BoardingList = () => {
               </div>
             );
           })}
+        </div>
+      </div>
+
+      {/* Boarding Stay Status Workflow & Legend */}
+      <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-brand-600 animate-pulse" />
+            <h3 className="text-xs font-black uppercase tracking-wider text-slate-900">
+              Boarding Stay Lifecycle & Status Definitions
+            </h3>
+          </div>
+          <span className="text-[11px] text-slate-400 font-medium">
+            Checked-out stays remain permanently preserved in records and are never removed
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
+          {/* Reserved Explainer */}
+          <div className="p-3 bg-amber-50/70 border border-amber-200/70 rounded-xl space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-100 text-amber-900 border border-amber-300">
+                Reserved
+              </span>
+              <span className="text-[10px] font-extrabold text-amber-700">Step 1: Booking Confirmed</span>
+            </div>
+            <p className="text-xs text-slate-700 leading-relaxed font-medium">
+              <strong className="text-slate-900">What it means:</strong> The stay was booked by the pet owner and confirmed on schedule, but the pet has <span className="underline font-bold">not yet arrived</span> at the facility.
+            </p>
+            <div className="text-[11px] font-bold text-amber-800 bg-amber-100/60 px-2 py-1 rounded-lg">
+              👉 Action: When the pet physically arrives, click <span className="text-emerald-700 font-black">"Check In"</span> to activate the stay.
+            </div>
+          </div>
+
+          {/* Checked In Explainer */}
+          <div className="p-3 bg-indigo-50/70 border border-indigo-200/70 rounded-xl space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-indigo-100 text-indigo-900 border border-indigo-300">
+                Checked In
+              </span>
+              <span className="text-[10px] font-extrabold text-indigo-700">Step 2: Active Guest</span>
+            </div>
+            <p className="text-xs text-slate-700 leading-relaxed font-medium">
+              <strong className="text-slate-900">What it means:</strong> The pet has physically arrived and is currently residing in their assigned suite. Staff logs daily feedings, walks, medications, and care logs during this stay.
+            </p>
+            <div className="text-[11px] font-bold text-indigo-800 bg-indigo-100/60 px-2 py-1 rounded-lg">
+              👉 Action: When stay completes and owner picks up pet, click <span className="text-sky-700 font-black">"Check Out"</span>.
+            </div>
+          </div>
+
+          {/* Checked Out Explainer */}
+          <div className="p-3 bg-emerald-50/70 border border-emerald-200/70 rounded-xl space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-100 text-emerald-900 border border-emerald-300">
+                Checked Out
+              </span>
+              <span className="text-[10px] font-extrabold text-emerald-700">Step 3: Completed Stay</span>
+            </div>
+            <p className="text-xs text-slate-700 leading-relaxed font-medium">
+              <strong className="text-slate-900">What it means:</strong> The stay has concluded and the pet has departed. The stay record is <span className="font-bold text-emerald-800">permanently kept</span> in history and never deleted.
+            </p>
+            <div className="text-[11px] font-bold text-emerald-800 bg-emerald-100/60 px-2 py-1 rounded-lg">
+              👉 Action: Stays remain visible. If pet returns or stay is re-opened, click <span className="text-emerald-700 font-black">"Check In"</span>.
+            </div>
+          </div>
         </div>
       </div>
 

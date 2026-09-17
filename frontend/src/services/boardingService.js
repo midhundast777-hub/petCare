@@ -34,7 +34,7 @@ export const boardingService = {
   },
 
   updateBooking: async (id, data) => {
-    const response = await api.put(`/boarding/bookings/${id}/`, data);
+    const response = await api.patch(`/boarding/bookings/${id}/`, data);
     return response.data;
   },
 

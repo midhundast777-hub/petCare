@@ -217,6 +217,26 @@ class BoardingChecklistView(APIView):
         if serializer.is_valid():
             updated_checklist = serializer.save()
 
+            # Update booking occupancy room and intake instructions if provided
+            room_id = request.data.get('room') or request.data.get('room_id')
+            if room_id is not None and str(room_id).strip() != '':
+                try:
+                    new_room = Room.objects.get(id=room_id)
+                    old_room = booking.room
+                    if old_room and old_room.id != new_room.id and old_room.status == Room.Status.OCCUPIED:
+                        old_room.status = Room.Status.AVAILABLE
+                        old_room.save(update_fields=['status'])
+                    booking.room = new_room
+                    if booking.check_in_date and booking.expected_check_out_date:
+                        days = max((booking.expected_check_out_date - booking.check_in_date).days, 1)
+                        booking.total_cost = new_room.daily_rate * days
+                except (Room.DoesNotExist, ValueError):
+                    pass
+
+            for field in ['feeding_instructions', 'medication_instructions', 'special_instructions', 'emergency_contact']:
+                if field in request.data:
+                    setattr(booking, field, request.data[field])
+
             # Process digital check-in
             if 'checkin_completed' in request.data:
                 if request.data['checkin_completed']:
@@ -224,10 +244,9 @@ class BoardingChecklistView(APIView):
                     updated_checklist.checkin_staff = request.user
                     updated_checklist.save()
                     booking.status = BoardingBooking.Status.CHECKED_IN
-                    booking.save()
                     if booking.room:
                         booking.room.status = Room.Status.OCCUPIED
-                        booking.room.save()
+                        booking.room.save(update_fields=['status'])
 
             # Process digital check-out
             if 'checkout_completed' in request.data:
@@ -237,10 +256,11 @@ class BoardingChecklistView(APIView):
                     updated_checklist.save()
                     booking.status = BoardingBooking.Status.CHECKED_OUT
                     booking.actual_check_out_date = timezone.now().date()
-                    booking.save()
                     if booking.room:
                         booking.room.status = Room.Status.AVAILABLE
-                        booking.room.save()
+                        booking.room.save(update_fields=['status'])
+
+            booking.save()
 
             return Response(BoardingChecklistSerializer(updated_checklist).data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

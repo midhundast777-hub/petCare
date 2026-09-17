@@ -264,44 +264,35 @@ export const BoardingList = () => {
             <span>Care Logs</span>
           </button>
 
-          {/* For RESERVED: Check-In Option */}
+          {/* For RESERVED: Check-In & Occupancy Assignment */}
           {row.status === 'RESERVED' && !isAdmin && isStaff && (
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => handleQuickStatusChange(row, 'CHECKED_IN')}
-                title="Direct Check-In for this pet upon arrival"
-                className="flex items-center gap-1 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-sm transition-colors cursor-pointer"
-              >
-                <LogIn className="w-3.5 h-3.5" />
-                <span>Check In</span>
-              </button>
-              <button
-                onClick={() => openChecklist(row, 'checkin')}
-                title="Intake Verification Protocol Checklist"
-                className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-lg text-[11px] font-bold transition-colors cursor-pointer"
-              >
-                Checklist
-              </button>
-            </div>
+            <button
+              onClick={() => openChecklist(row, 'checkin')}
+              title="Check in this pet & select kennel suite occupancy"
+              className="flex items-center gap-1 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-sm transition-colors cursor-pointer"
+            >
+              <LogIn className="w-3.5 h-3.5" />
+              <span>Check In</span>
+            </button>
           )}
 
-          {/* For CHECKED_IN: Check-Out Option */}
+          {/* For CHECKED_IN: Check-Out Option & Suite / Intake management */}
           {row.status === 'CHECKED_IN' && !isAdmin && isStaff && (
             <div className="flex items-center gap-1">
               <button
-                onClick={() => handleQuickStatusChange(row, 'CHECKED_OUT')}
-                title="Direct Check-Out (complete stay)"
-                className="flex items-center gap-1 px-2.5 py-1 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-bold shadow-sm transition-colors cursor-pointer"
+                onClick={() => openChecklist(row, 'checkin')}
+                title="View / Update Suite Occupancy & Intake Details"
+                className="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 rounded-lg text-[11px] font-bold transition-colors cursor-pointer"
               >
-                <LogOut className="w-3.5 h-3.5" />
-                <span>Check Out</span>
+                Suite & Intake
               </button>
               <button
                 onClick={() => openChecklist(row, 'checkout')}
                 title="Departure Verification Protocol Checklist"
-                className="px-2 py-1 bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-200 rounded-lg text-[11px] font-bold transition-colors cursor-pointer"
+                className="flex items-center gap-1 px-2.5 py-1 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-bold shadow-sm transition-colors cursor-pointer"
               >
-                Checklist
+                <LogOut className="w-3.5 h-3.5" />
+                <span>Check Out</span>
               </button>
             </div>
           )}
@@ -309,7 +300,7 @@ export const BoardingList = () => {
           {/* For CHECKED_OUT: Option to Check In (re-check in / re-open stay) */}
           {row.status === 'CHECKED_OUT' && !isAdmin && isStaff && (
             <button
-              onClick={() => handleQuickStatusChange(row, 'CHECKED_IN')}
+              onClick={() => openChecklist(row, 'checkin')}
               title="Re-check in this pet (stay remains permanently saved in records)"
               className="flex items-center gap-1 px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 rounded-lg text-xs font-bold shadow-xs transition-colors cursor-pointer"
             >
@@ -456,7 +447,7 @@ export const BoardingList = () => {
               <strong className="text-slate-900">What it means:</strong> The stay was booked by the pet owner and confirmed on schedule, but the pet has <span className="underline font-bold">not yet arrived</span> at the facility.
             </p>
             <div className="text-[11px] font-bold text-amber-800 bg-amber-100/60 px-2 py-1 rounded-lg">
-              👉 Action: When the pet physically arrives, click <span className="text-emerald-700 font-black">"Check In"</span> to activate the stay.
+              👉 Action: When the pet arrives, click <span className="text-emerald-700 font-black">"Check In"</span> to select kennel suite occupancy, care & feeding details, and activate stay.
             </div>
           </div>
 
@@ -469,10 +460,10 @@ export const BoardingList = () => {
               <span className="text-[10px] font-extrabold text-indigo-700">Step 2: Active Guest</span>
             </div>
             <p className="text-xs text-slate-700 leading-relaxed font-medium">
-              <strong className="text-slate-900">What it means:</strong> The pet has physically arrived and is currently residing in their assigned suite. Staff logs daily feedings, walks, medications, and care logs during this stay.
+              <strong className="text-slate-900">What it means:</strong> The pet has physically arrived and is residing in their assigned suite. Staff logs daily feedings, walks, medications, and care logs.
             </p>
             <div className="text-[11px] font-bold text-indigo-800 bg-indigo-100/60 px-2 py-1 rounded-lg">
-              👉 Action: When stay completes and owner picks up pet, click <span className="text-sky-700 font-black">"Check Out"</span>.
+              👉 Action: Use <span className="text-indigo-700 font-black">"Suite & Intake"</span> to review/update occupancy or care. When stay ends, click <span className="text-sky-700 font-black">"Check Out"</span>.
             </div>
           </div>
 

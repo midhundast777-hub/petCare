@@ -84,6 +84,18 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     username_field = 'email'
 
     def validate(self, attrs):
+        identifier = (attrs.get('email') or attrs.get('username') or '').strip()
+        if identifier:
+            from django.db.models import Q
+            digits = ''.join(c for c in identifier if c.isdigit())
+            q = Q(email__iexact=identifier) | Q(phone__iexact=identifier)
+            if digits and len(digits) >= 10:
+                q |= Q(phone__endswith=digits[-10:])
+
+            user_obj = User.objects.filter(q).first()
+            if user_obj:
+                attrs['email'] = user_obj.email
+
         data = super().validate(attrs)
         data['user'] = {
             'id': self.user.id,

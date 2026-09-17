@@ -1,14 +1,23 @@
 import api from './api';
 
 export const authService = {
-  login: async (email, password) => {
-    const response = await api.post('/auth/login/', { email, password });
+  login: async (identifier, password) => {
+    const response = await api.post('/auth/login/', { email: identifier, password });
     if (response.data.access) {
       localStorage.setItem('access_token', response.data.access);
       localStorage.setItem('refresh_token', response.data.refresh);
       localStorage.setItem('user_info', JSON.stringify(response.data.user));
     }
     return response.data;
+  },
+
+  checkUserExists: async (email, phone) => {
+    try {
+      const response = await api.get('/auth/check-user/', { params: { email, phone } });
+      return response.data;
+    } catch (err) {
+      return { exists: false };
+    }
   },
 
   register: async (userData) => {

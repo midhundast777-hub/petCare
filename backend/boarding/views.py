@@ -38,7 +38,7 @@ class BoardingBookingListCreateView(generics.ListCreateAPIView):
         queryset = BoardingBooking.objects.select_related('customer', 'pet', 'room').all()
 
         if user.role == 'CUSTOMER' and not user.is_superuser:
-            queryset = queryset.filter(customer__user=user)
+            queryset = queryset.filter(Q(customer__user=user) | Q(customer__email__iexact=user.email))
 
         status_param = self.request.query_params.get('status')
         if status_param:
@@ -72,6 +72,11 @@ class BoardingBookingListCreateView(generics.ListCreateAPIView):
         if not customer:
             if user and user.is_authenticated:
                 customer = Customer.objects.filter(user=user).first()
+                if not customer:
+                    customer = Customer.objects.filter(email__iexact=user.email).first()
+                    if customer and not customer.user:
+                        customer.user = user
+                        customer.save()
                 if not customer:
                     customer = Customer.objects.create(
                         user=user,

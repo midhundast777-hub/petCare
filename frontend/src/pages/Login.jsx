@@ -1,12 +1,25 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../context/ToastContext';
 import { Lock, Mail, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { boardingService } from '../services/boardingService';
 
 export const Login = () => {
-  const [email, setEmail] = useState('');
+  const location = useLocation();
+  const [identifier, setIdentifier] = useState(() => {
+    if (location.state?.identifier) return location.state.identifier;
+    if (location.state?.email) return location.state.email;
+    if (location.state?.phone) return location.state.phone;
+    try {
+      const pending = localStorage.getItem('pending_booking');
+      if (pending) {
+        const parsed = JSON.parse(pending);
+        return parsed.email || parsed.phone || '';
+      }
+    } catch (e) {}
+    return '';
+  });
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -18,7 +31,7 @@ export const Login = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      await login(email, password);
+      await login(identifier, password);
       addToast('Welcome back! Successfully logged in.', 'success');
 
       // Process pending booking if user submitted before registering/logging in
@@ -49,7 +62,7 @@ export const Login = () => {
 
       navigate('/dashboard');
     } catch (err) {
-      addToast(err.response?.data?.detail || 'Invalid email or password', 'error');
+      addToast(err.response?.data?.detail || 'Invalid email/phone or password', 'error');
     } finally {
       setLoading(false);
     }
@@ -76,16 +89,16 @@ export const Login = () => {
           <form className="space-y-4" onSubmit={handleSubmit}>
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-                Email Address
+                Email Address or Phone
               </label>
               <div className="relative">
                 <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
-                  type="email"
+                  type="text"
                   required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@example.com"
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  placeholder="name@example.com or Phone number"
                   className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all text-slate-800"
                 />
               </div>

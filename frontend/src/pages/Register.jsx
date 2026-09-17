@@ -1,27 +1,29 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../context/ToastContext';
 import { Mail, Lock, User, Phone, ArrowRight, Eye, EyeOff } from 'lucide-react';
 
 export const Register = () => {
+  const location = useLocation();
   const [formData, setFormData] = useState(() => {
     const initial = {
-      email: '',
+      email: location.state?.email || '',
       password: '',
       first_name: '',
       last_name: '',
-      phone: '',
+      phone: location.state?.phone || '',
       role: 'CUSTOMER',
     };
     try {
       const pending = localStorage.getItem('pending_booking');
       if (pending) {
         const parsed = JSON.parse(pending);
-        const nameParts = (parsed.ownerName || '').trim().split(' ');
+        if (!initial.email && parsed.email) initial.email = parsed.email;
+        if (!initial.phone && parsed.phone) initial.phone = parsed.phone;
+        const nameParts = ((location.state?.ownerName || parsed.ownerName) || '').trim().split(' ');
         initial.first_name = nameParts[0] || '';
         initial.last_name = nameParts.slice(1).join(' ') || '';
-        initial.phone = parsed.phone || '';
       }
     } catch (e) {}
     return initial;
@@ -39,7 +41,7 @@ export const Register = () => {
       logout(); // Clear any old sessions
       await register(formData);
       addToast('Registration successful! Please login with your email and password.', 'success');
-      navigate('/login');
+      navigate('/login', { state: { identifier: formData.email } });
     } catch (err) {
       const errorData = err.response?.data;
       let msg = 'Registration failed. Please check inputs.';

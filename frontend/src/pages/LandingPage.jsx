@@ -8,6 +8,7 @@ import {
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../context/ToastContext';
 import { boardingService } from '../services/boardingService';
+import { authService } from '../services/authService';
 
 export default function LandingPage() {
   const { user } = useAuth();
@@ -18,6 +19,7 @@ export default function LandingPage() {
   // Enquiry Form State
   const [formData, setFormData] = useState({
     ownerName: '',
+    email: '',
     phone: '',
     dogName: '',
     breedSize: '',
@@ -52,6 +54,7 @@ I would like to enquire about pet boarding / services.
 
 *Booking Details*
 - Owner Name: ${formData.ownerName || '-'}
+- Email: ${formData.email || '-'}
 - Phone: ${formData.phone || '-'}
 - Pet Name: ${formData.dogName || '-'}
 - Breed / Size: ${formData.breedSize || '-'}
@@ -68,16 +71,37 @@ Thank you.`;
 
   const handleOnlineSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.ownerName || !formData.phone || !formData.dogName || !formData.dropOffDate) {
-      addToast('Please fill in all required fields (Owner Name, Phone, Pet Name, Drop-off Date)', 'error');
+    if (!formData.ownerName || !formData.email || !formData.phone || !formData.dogName || !formData.dropOffDate) {
+      addToast('Please fill in all required fields (Owner Name, Email, Phone, Pet Name, Drop-off Date)', 'error');
       return;
     }
 
     if (!user) {
-      // If the user is not registered / logged in, save pending booking and go to registration
-      localStorage.setItem('pending_booking', JSON.stringify(formData));
-      addToast('Please register an account or sign in to complete your booking submission.', 'info');
-      navigate('/register');
+      setSubmitting(true);
+      try {
+        localStorage.setItem('pending_booking', JSON.stringify(formData));
+        // Check if user is already registered with email or phone
+        const check = await authService.checkUserExists(formData.email, formData.phone);
+        if (check?.exists) {
+          addToast(`Account found for ${check.email || formData.email}. Please sign in to submit your booking.`, 'info');
+          navigate('/login', { state: { identifier: check.email || formData.email } });
+        } else {
+          addToast('Please register an account to submit your booking reservation.', 'info');
+          navigate('/register', {
+            state: {
+              email: formData.email,
+              phone: formData.phone,
+              ownerName: formData.ownerName
+            }
+          });
+        }
+      } catch (err) {
+        console.error('Check user error:', err);
+        localStorage.setItem('pending_booking', JSON.stringify(formData));
+        navigate('/login', { state: { identifier: formData.email } });
+      } finally {
+        setSubmitting(false);
+      }
       return;
     }
 
@@ -96,6 +120,7 @@ Thank you.`;
       addToast('Booking request submitted to admin and staff! Redirecting to your profile...', 'success');
       setFormData({
         ownerName: '',
+        email: '',
         phone: '',
         dogName: '',
         breedSize: '',
@@ -661,6 +686,22 @@ Thank you.`;
                         onChange={handleInputChange}
                         required
                         placeholder="e.g. Rachel Greenwood"
+                        className="w-full rounded-xl border-2 border-slate-200 bg-white px-4 py-3.5 text-sm font-bold text-slate-900 placeholder:text-slate-400 placeholder:font-medium outline-none focus:border-brand-600 focus:ring-4 focus:ring-brand-500/15 transition shadow-xs"
+                      />
+                    </div>
+
+                    {/* Email Address */}
+                    <div>
+                      <label className="block text-xs font-extrabold text-slate-900 uppercase tracking-wider mb-2">
+                        Email Address <span className="text-rose-500 font-bold">*</span>
+                      </label>
+                      <input 
+                        type="email"
+                        name="email"
+                        value={formData.email}
+                        onChange={handleInputChange}
+                        required
+                        placeholder="e.g. rachel@example.com"
                         className="w-full rounded-xl border-2 border-slate-200 bg-white px-4 py-3.5 text-sm font-bold text-slate-900 placeholder:text-slate-400 placeholder:font-medium outline-none focus:border-brand-600 focus:ring-4 focus:ring-brand-500/15 transition shadow-xs"
                       />
                     </div>

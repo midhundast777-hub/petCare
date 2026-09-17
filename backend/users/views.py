@@ -17,6 +17,36 @@ class RegisterView(generics.CreateAPIView):
     permission_classes = [permissions.AllowAny]
     authentication_classes = []
 
+class CheckUserExistsView(APIView):
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+
+    def get(self, request):
+        identifier = request.query_params.get('identifier', '').strip()
+        email = request.query_params.get('email', '').strip()
+        phone = request.query_params.get('phone', '').strip()
+
+        q = models.Q()
+        if identifier:
+            q |= models.Q(email__iexact=identifier) | models.Q(phone__iexact=identifier)
+        if email:
+            q |= models.Q(email__iexact=email)
+        if phone:
+            digits = ''.join(c for c in phone if c.isdigit())
+            q |= models.Q(phone__iexact=phone)
+            if digits and len(digits) >= 10:
+                q |= models.Q(phone__endswith=digits[-10:])
+
+        exists = False
+        user_email = ''
+        if q:
+            user = User.objects.filter(q).first()
+            if user:
+                exists = True
+                user_email = user.email
+
+        return Response({'exists': exists, 'email': user_email})
+
 class UserProfileView(generics.RetrieveUpdateAPIView):
     serializer_class = UserSerializer
     permission_classes = [permissions.IsAuthenticated]

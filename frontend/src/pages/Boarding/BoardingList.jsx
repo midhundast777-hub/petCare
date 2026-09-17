@@ -264,49 +264,49 @@ export const BoardingList = () => {
             <span>Care Logs</span>
           </button>
 
-          {/* For RESERVED: Check-In & Occupancy Assignment */}
-          {row.status === 'RESERVED' && !isAdmin && isStaff && (
-            <button
-              onClick={() => openChecklist(row, 'checkin')}
-              title="Check in this pet & select kennel suite occupancy"
-              className="flex items-center gap-1 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-sm transition-colors cursor-pointer"
-            >
-              <LogIn className="w-3.5 h-3.5" />
-              <span>Check In</span>
-            </button>
-          )}
-
-          {/* For CHECKED_IN: Check-Out Option & Suite / Intake management */}
-          {row.status === 'CHECKED_IN' && !isAdmin && isStaff && (
-            <div className="flex items-center gap-1">
+          {/* Check In & Check Out as 2 persistent buttons */}
+          {!isAdmin && isStaff && (
+            <div className="flex items-center gap-1.5">
+              {/* Button 1: Check In */}
               <button
                 onClick={() => openChecklist(row, 'checkin')}
-                title="View / Update Suite Occupancy & Intake Details"
-                className="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 rounded-lg text-[11px] font-bold transition-colors cursor-pointer"
+                disabled={row.status === 'CHECKED_IN'}
+                title={
+                  row.status === 'CHECKED_IN'
+                    ? 'Guest is currently checked in'
+                    : 'Check in this pet & select kennel suite occupancy'
+                }
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                  row.status === 'CHECKED_IN'
+                    ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed opacity-50'
+                    : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm cursor-pointer'
+                }`}
               >
-                Suite & Intake
+                <LogIn className="w-3.5 h-3.5" />
+                <span>Check In</span>
               </button>
+
+              {/* Button 2: Check Out */}
               <button
                 onClick={() => openChecklist(row, 'checkout')}
-                title="Departure Verification Protocol Checklist"
-                className="flex items-center gap-1 px-2.5 py-1 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-bold shadow-sm transition-colors cursor-pointer"
+                disabled={row.status !== 'CHECKED_IN'}
+                title={
+                  row.status !== 'CHECKED_IN'
+                    ? row.status === 'CHECKED_OUT'
+                      ? 'Stay has already checked out'
+                      : 'Pet must be checked in before check-out'
+                    : 'Departure Protocol & Check Out'
+                }
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                  row.status !== 'CHECKED_IN'
+                    ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed opacity-50'
+                    : 'bg-sky-600 hover:bg-sky-700 text-white shadow-sm cursor-pointer'
+                }`}
               >
                 <LogOut className="w-3.5 h-3.5" />
                 <span>Check Out</span>
               </button>
             </div>
-          )}
-
-          {/* For CHECKED_OUT: Option to Check In (re-check in / re-open stay) */}
-          {row.status === 'CHECKED_OUT' && !isAdmin && isStaff && (
-            <button
-              onClick={() => openChecklist(row, 'checkin')}
-              title="Re-check in this pet (stay remains permanently saved in records)"
-              className="flex items-center gap-1 px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 rounded-lg text-xs font-bold shadow-xs transition-colors cursor-pointer"
-            >
-              <LogIn className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Check In</span>
-            </button>
           )}
 
           {!isAdmin && (

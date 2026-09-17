@@ -35,6 +35,9 @@ class InvoiceListCreateView(generics.ListCreateAPIView):
                 Q(pet__name__icontains=search)
             )
 
+        # Boarding invoices are only shown after check-in (not while RESERVED)
+        queryset = queryset.exclude(boarding_booking__status='RESERVED')
+
         return queryset
 
 class InvoiceDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -43,9 +46,10 @@ class InvoiceDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def get_queryset(self):
         user = self.request.user
+        queryset = Invoice.objects.exclude(boarding_booking__status='RESERVED')
         if user.role == 'CUSTOMER' and not user.is_superuser:
-            return Invoice.objects.filter(customer__user=user)
-        return Invoice.objects.all()
+            return queryset.filter(customer__user=user)
+        return queryset
 
 class PaymentCreateView(APIView):
     permission_classes = [IsStaffOrAdmin]

@@ -174,6 +174,65 @@ class BoardingBookingListCreateView(generics.ListCreateAPIView):
                 link="/profile"
             )
 
+def sync_boarding_invoice(booking):
+    """
+    Creates or updates an Invoice in the Billing module only when the pet is checked in
+    (or checked out), storing the suite occupancy, duration, and calculated cost.
+    Stays with status 'RESERVED' do not have an invoice generated.
+    """
+    if not booking or not booking.customer:
+        return None
+
+    if booking.status not in [BoardingBooking.Status.CHECKED_IN, BoardingBooking.Status.CHECKED_OUT]:
+        return None
+
+    from billing.models import Invoice
+
+    days = 1
+    if booking.check_in_date and booking.expected_check_out_date:
+        days = max((booking.expected_check_out_date - booking.check_in_date).days, 1)
+
+    daily_rate = float(booking.room.daily_rate) if booking.room else 45.00
+    room_desc = f"Room {booking.room.room_number} ({booking.room.get_room_type_display()})" if booking.room else "Boarding Kennel Suite"
+    item_total = round(daily_rate * days, 2)
+
+    items_data = [
+        {
+            'description': f"Boarding Stay ({booking.booking_id}): {room_desc} ({booking.check_in_date} to {booking.expected_check_out_date}, {days} nights)",
+            'quantity': days,
+            'unit_price': daily_rate,
+            'total': item_total
+        }
+    ]
+
+    due_date = booking.expected_check_out_date or booking.check_in_date or timezone.now().date()
+    inv_date = booking.check_in_date or timezone.now().date()
+
+    invoice, created = Invoice.objects.get_or_create(
+        boarding_booking=booking,
+        defaults={
+            'customer': booking.customer,
+            'pet': booking.pet,
+            'items_data': items_data,
+            'subtotal': item_total,
+            'due_date': due_date,
+            'invoice_date': inv_date,
+            'payment_status': Invoice.PaymentStatus.PENDING,
+            'notes': f"Auto-generated for Boarding Stay {booking.booking_id} upon Check-In & Suite Occupancy Confirmation."
+        }
+    )
+
+    if not created:
+        invoice.customer = booking.customer
+        invoice.pet = booking.pet
+        invoice.items_data = items_data
+        invoice.subtotal = item_total
+        invoice.due_date = due_date
+        invoice.invoice_date = inv_date
+        invoice.save()
+
+    return invoice
+
 class BoardingBookingDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = BoardingBookingSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -193,6 +252,9 @@ class BoardingBookingDetailView(generics.RetrieveUpdateDestroyAPIView):
             elif booking.status in [BoardingBooking.Status.CHECKED_OUT, BoardingBooking.Status.CANCELLED]:
                 booking.room.status = Room.Status.AVAILABLE
                 booking.room.save(update_fields=['status'])
+
+        if booking.status in [BoardingBooking.Status.CHECKED_IN, BoardingBooking.Status.CHECKED_OUT]:
+            sync_boarding_invoice(booking)
 
 class BoardingChecklistView(APIView):
     permission_classes = [IsStaffOrAdmin]
@@ -247,6 +309,9 @@ class BoardingChecklistView(APIView):
                     if booking.room:
                         booking.room.status = Room.Status.OCCUPIED
                         booking.room.save(update_fields=['status'])
+                    booking.save()
+                    # Store record to billing invoice upon check-in
+                    sync_boarding_invoice(booking)
 
             # Process digital check-out
             if 'checkout_completed' in request.data:
@@ -259,6 +324,8 @@ class BoardingChecklistView(APIView):
                     if booking.room:
                         booking.room.status = Room.Status.AVAILABLE
                         booking.room.save(update_fields=['status'])
+                    booking.save()
+                    sync_boarding_invoice(booking)
 
             booking.save()
 

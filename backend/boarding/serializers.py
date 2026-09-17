@@ -1,5 +1,7 @@
 from rest_framework import serializers
 from .models import Room, BoardingBooking, BoardingChecklist, DailyCareLog
+from customers.models import Customer
+from pets.models import Pet
 
 class RoomSerializer(serializers.ModelSerializer):
     room_type_display = serializers.CharField(source='get_room_type_display', read_only=True)
@@ -26,6 +28,10 @@ class BoardingChecklistSerializer(serializers.ModelSerializer):
         read_only_fields = ('id', 'booking')
 
 class BoardingBookingSerializer(serializers.ModelSerializer):
+    customer = serializers.PrimaryKeyRelatedField(queryset=Customer.objects.all(), required=False, allow_null=True)
+    pet = serializers.PrimaryKeyRelatedField(queryset=Pet.objects.all(), required=False, allow_null=True)
+    check_in_date = serializers.DateField(required=False)
+    expected_check_out_date = serializers.DateField(required=False, allow_null=True)
     customer_name = serializers.ReadOnlyField(source='customer.full_name')
     customer_phone = serializers.ReadOnlyField(source='customer.phone')
     pet_name = serializers.ReadOnlyField(source='pet.name')
@@ -48,6 +54,15 @@ class BoardingBookingSerializer(serializers.ModelSerializer):
         read_only_fields = ('id', 'booking_id', 'created_at', 'updated_at')
 
     def validate(self, attrs):
+        # Support fallback from dropOffDate / pickUpDate
+        if not attrs.get('check_in_date') and self.initial_data.get('dropOffDate'):
+            attrs['check_in_date'] = self.initial_data.get('dropOffDate')
+        if not attrs.get('expected_check_out_date'):
+            if self.initial_data.get('pickUpDate'):
+                attrs['expected_check_out_date'] = self.initial_data.get('pickUpDate')
+            elif attrs.get('check_in_date'):
+                attrs['expected_check_out_date'] = attrs.get('check_in_date')
+
         check_in = attrs.get('check_in_date') or (self.instance.check_in_date if self.instance else None)
         expected_out = attrs.get('expected_check_out_date') or (self.instance.expected_check_out_date if self.instance else None)
         room = attrs.get('room') or (self.instance.room if self.instance else None)

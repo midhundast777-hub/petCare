@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { 
   Phone, MessageCircle, CheckCircle2, Star, 
   ChevronDown, ChevronUp, ShieldCheck, 
@@ -7,10 +7,13 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../context/ToastContext';
+import { boardingService } from '../services/boardingService';
 
 export default function LandingPage() {
   const { user } = useAuth();
-  const { showToast } = useToast();
+  const { addToast } = useToast();
+  const navigate = useNavigate();
+  const [submitting, setSubmitting] = useState(false);
 
   // Enquiry Form State
   const [formData, setFormData] = useState({
@@ -63,15 +66,52 @@ Thank you.`;
     return `https://wa.me/919847012345?text=${encodeURIComponent(text)}`;
   };
 
-  const handleOnlineSubmit = (e) => {
+  const handleOnlineSubmit = async (e) => {
     e.preventDefault();
     if (!formData.ownerName || !formData.phone || !formData.dogName || !formData.dropOffDate) {
-      showToast('Please fill in all required fields (Owner Name, Phone, Dog Name, Drop-off Date)', 'warning');
+      addToast('Please fill in all required fields (Owner Name, Phone, Dog Name, Drop-off Date)', 'error');
       return;
     }
 
-    setFormSubmitted(true);
-    showToast('Enquiry received! Our sanctuary team will reach out to confirm your dates.', 'success');
+    if (!user) {
+      // If the user is not registered / logged in, save pending booking and go to registration
+      localStorage.setItem('pending_booking', JSON.stringify(formData));
+      addToast('Please register an account or sign in to complete your booking submission.', 'info');
+      navigate('/register');
+      return;
+    }
+
+    // User is already registered and logged in
+    setSubmitting(true);
+    try {
+      await boardingService.createBooking({
+        dogName: formData.dogName,
+        breedSize: formData.breedSize,
+        check_in_date: formData.dropOffDate,
+        expected_check_out_date: formData.pickUpDate || formData.dropOffDate,
+        special_instructions: formData.note || '',
+        emergency_contact: formData.phone || '',
+        package: 'STANDARD',
+      });
+      addToast('Booking request submitted to admin and staff! Redirecting to your profile...', 'success');
+      setFormData({
+        ownerName: '',
+        phone: '',
+        dogName: '',
+        breedSize: '',
+        serviceType: 'Boarding Stay',
+        dropOffDate: '',
+        pickUpDate: '',
+        note: ''
+      });
+      navigate('/profile');
+    } catch (err) {
+      console.error('Failed to submit booking:', err);
+      const errMsg = err.response?.data?.detail || 'Failed to submit booking request. Please try again.';
+      addToast(errMsg, 'error');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   // Gallery Photos
@@ -718,16 +758,15 @@ Thank you.`;
                     ></textarea>
                   </div>
 
-                  {/* Enquiry Button */}
+                  {/* Submit Button */}
                   <div className="pt-2">
-                    <a 
-                      href={generateWhatsAppUrl()} 
-                      target="_blank" 
-                      rel="noreferrer"
-                      className="block w-full py-4 px-6 rounded-2xl bg-brand-600 hover:bg-brand-700 text-white text-center font-black text-base uppercase tracking-[0.08em] shadow-lg shadow-brand-500/30 transition transform hover:-translate-y-0.5"
+                    <button 
+                      type="submit"
+                      disabled={submitting}
+                      className="block w-full py-4 px-6 rounded-2xl bg-brand-600 hover:bg-brand-700 disabled:bg-brand-400 text-white text-center font-black text-base uppercase tracking-[0.08em] shadow-lg shadow-brand-500/30 transition transform hover:-translate-y-0.5 cursor-pointer disabled:cursor-not-allowed"
                     >
-                      Submit
-                    </a>
+                      {submitting ? 'Submitting...' : 'Submit'}
+                    </button>
                   </div>
 
                   <div className="mt-3 p-3 rounded-xl bg-slate-100 border border-slate-200 text-center text-xs font-bold text-slate-700">

@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../context/ToastContext';
 import { Lock, Mail, ArrowRight, Eye, EyeOff } from 'lucide-react';
+import { boardingService } from '../services/boardingService';
 
 export const Login = () => {
   const [email, setEmail] = useState('');
@@ -19,6 +20,33 @@ export const Login = () => {
     try {
       await login(email, password);
       addToast('Welcome back! Successfully logged in.', 'success');
+
+      // Process pending booking if user submitted before registering/logging in
+      const pendingStr = localStorage.getItem('pending_booking');
+      if (pendingStr) {
+        try {
+          const pending = JSON.parse(pendingStr);
+          await boardingService.createBooking({
+            dogName: pending.dogName,
+            breedSize: pending.breedSize,
+            check_in_date: pending.dropOffDate,
+            expected_check_out_date: pending.pickUpDate || pending.dropOffDate,
+            special_instructions: pending.note || '',
+            emergency_contact: pending.phone || '',
+            package: 'STANDARD',
+          });
+          localStorage.removeItem('pending_booking');
+          addToast('Booking request submitted to admin and staff!', 'success');
+          navigate('/profile');
+          return;
+        } catch (bookingErr) {
+          console.error('Auto booking submission error:', bookingErr);
+          localStorage.removeItem('pending_booking');
+          navigate('/profile');
+          return;
+        }
+      }
+
       navigate('/dashboard');
     } catch (err) {
       addToast(err.response?.data?.detail || 'Invalid email or password', 'error');

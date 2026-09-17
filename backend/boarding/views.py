@@ -7,6 +7,9 @@ from .models import Room, BoardingBooking, BoardingChecklist, DailyCareLog
 from .serializers import RoomSerializer, BoardingBookingSerializer, BoardingChecklistSerializer, DailyCareLogSerializer
 from users.permissions import IsStaffOrAdmin
 from customers.models import Customer
+from pets.models import Pet
+from users.models import User
+from notifications.models import Notification
 
 class RoomListCreateView(generics.ListCreateAPIView):
     queryset = Room.objects.all()
@@ -63,14 +66,108 @@ class BoardingBookingListCreateView(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         user = self.request.user
-        if user.role == 'CUSTOMER' and not user.is_superuser:
-            customer = Customer.objects.filter(user=user).first()
-            if customer:
-                serializer.save(customer=customer, status=BoardingBooking.Status.RESERVED)
+
+        # 1. Resolve Customer
+        customer = serializer.validated_data.get('customer')
+        if not customer:
+            if user and user.is_authenticated:
+                customer = Customer.objects.filter(user=user).first()
+                if not customer:
+                    customer = Customer.objects.create(
+                        user=user,
+                        first_name=user.first_name or 'Valued',
+                        last_name=user.last_name or 'Customer',
+                        email=user.email,
+                        phone=user.phone or self.request.data.get('emergency_contact') or self.request.data.get('phone') or '000-000-0000'
+                    )
+
+        # 2. Resolve or Create Pet
+        pet = serializer.validated_data.get('pet')
+        if not pet and customer:
+            dog_name = (
+                self.request.data.get('dogName') or 
+                self.request.data.get('dog_name') or 
+                self.request.data.get('pet_name') or ''
+            ).strip()
+            breed = (self.request.data.get('breedSize') or self.request.data.get('breed') or '').strip()
+
+            if dog_name:
+                pet = Pet.objects.filter(owner=customer, name__iexact=dog_name).first()
+                if not pet:
+                    pet = Pet.objects.create(
+                        owner=customer,
+                        name=dog_name,
+                        breed=breed,
+                        species=Pet.Species.DOG
+                    )
             else:
-                serializer.save()
-        else:
-            serializer.save()
+                pet = Pet.objects.filter(owner=customer).first()
+                if not pet:
+                    pet = Pet.objects.create(
+                        owner=customer,
+                        name='My Pet',
+                        breed=breed,
+                        species=Pet.Species.DOG
+                    )
+
+        # 3. Resolve dates
+        check_in = (
+            serializer.validated_data.get('check_in_date') or 
+            self.request.data.get('dropOffDate') or 
+            timezone.now().date()
+        )
+        expected_out = (
+            serializer.validated_data.get('expected_check_out_date') or 
+            self.request.data.get('pickUpDate') or 
+            check_in
+        )
+
+        special_instructions = (
+            serializer.validated_data.get('special_instructions') or 
+            self.request.data.get('note') or ''
+        )
+        emergency_contact = (
+            serializer.validated_data.get('emergency_contact') or 
+            self.request.data.get('phone') or ''
+        )
+
+        save_kwargs = {
+            'check_in_date': check_in,
+            'expected_check_out_date': expected_out,
+            'special_instructions': special_instructions,
+            'emergency_contact': emergency_contact,
+            'status': BoardingBooking.Status.RESERVED
+        }
+        if customer:
+            save_kwargs['customer'] = customer
+        if pet:
+            save_kwargs['pet'] = pet
+
+        booking = serializer.save(**save_kwargs)
+
+        # 4. Notify Admin and Staff
+        staff_and_admin = User.objects.filter(role__in=[User.Role.ADMIN, User.Role.STAFF])
+        cust_name = customer.full_name if customer else (user.full_name if user else 'Customer')
+        pet_display = pet.name if pet else 'Pet'
+
+        for recipient in staff_and_admin:
+            Notification.objects.create(
+                recipient=recipient,
+                title="New Boarding Stay Request",
+                message=f"New booking request from {cust_name} for pet '{pet_display}' ({booking.check_in_date} to {booking.expected_check_out_date}).",
+                notification_type=Notification.NotificationType.BOOKING_CONFIRMATION,
+                link="/boarding"
+            )
+
+        # 5. Notify Customer
+        if user and user.is_authenticated:
+            Notification.objects.create(
+                recipient=user,
+                title="Boarding Request Received",
+                message=f"Your booking request for '{pet_display}' ({booking.check_in_date} to {booking.expected_check_out_date}) has been submitted.",
+                notification_type=Notification.NotificationType.BOOKING_CONFIRMATION,
+                link="/profile"
+            )
 
 class BoardingBookingDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = BoardingBookingSerializer

@@ -146,7 +146,7 @@ export const BoardingModal = ({ isOpen, onClose, booking, onSaved }) => {
           </div>
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
               Pet *
@@ -168,23 +168,7 @@ export const BoardingModal = ({ isOpen, onClose, booking, onSaved }) => {
 
           <div>
             <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
-              Boarding Package *
-            </label>
-            <select
-              value={formData.package}
-              onChange={(e) => setFormData({ ...formData, package: e.target.value })}
-              className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500/20"
-            >
-              <option value="STANDARD">Standard Suite ($45/night)</option>
-              <option value="PREMIUM">Premium Suite ($65/night)</option>
-              <option value="LUXURY">Luxury VIP Penthouse ($85/night)</option>
-              <option value="DAYCARE">Daycare Only ($38/day)</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
-              Assigned Room / Kennel
+              Assigned Room / Kennel Suite
             </label>
             <select
               value={formData.room}

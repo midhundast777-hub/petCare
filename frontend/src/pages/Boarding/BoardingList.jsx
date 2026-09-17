@@ -195,7 +195,11 @@ export const BoardingList = () => {
           <p className="text-xs font-bold text-brand-700 mt-0.5">
             {row.room_number ? `Room ${row.room_number}` : 'Room Pending'}
           </p>
-          <span className="text-[10px] text-slate-400 uppercase tracking-wider">{row.package}</span>
+          {row.room_type && (
+            <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">
+              {row.room_type} SUITE
+            </span>
+          )}
         </div>
       ),
     },

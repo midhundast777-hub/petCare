@@ -20,7 +20,7 @@ import {
   Eye
 } from 'lucide-react';
 
-export const AppointmentList = () => {
+export const AppointmentList = ({ isEmbedded = false }) => {
   const { isStaff, isAdmin } = useAuth();
   const { addToast } = useToast();
   const [appointments, setAppointments] = useState([]);
@@ -222,54 +222,99 @@ export const AppointmentList = () => {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-            <Calendar className="w-6 h-6 text-brand-600" />
-            <span>Appointment Management</span>
-          </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Book visits, manage check-ins, resolve conflicts, and track staff assignments
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          {/* View Mode Toggle */}
-          <div className="flex p-1 bg-slate-200/80 rounded-xl">
-            <button
-              onClick={() => setViewMode('list')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                viewMode === 'list' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <ListFilter className="w-3.5 h-3.5" />
-              <span>List</span>
-            </button>
-            <button
-              onClick={() => setViewMode('calendar')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                viewMode === 'calendar' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <CalendarDays className="w-3.5 h-3.5" />
-              <span>Schedule</span>
-            </button>
+      {!isEmbedded ? (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+              <Calendar className="w-6 h-6 text-brand-600" />
+              <span>Appointment Management</span>
+            </h1>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Book visits, manage check-ins, resolve conflicts, and track staff assignments
+            </p>
           </div>
 
-          {!isAdmin && (
+          <div className="flex items-center gap-3">
+            {/* View Mode Toggle */}
+            <div className="flex p-1 bg-slate-200/80 rounded-xl">
+              <button
+                onClick={() => setViewMode('list')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  viewMode === 'list' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <ListFilter className="w-3.5 h-3.5" />
+                <span>List</span>
+              </button>
+              <button
+                onClick={() => setViewMode('calendar')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  viewMode === 'calendar' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <CalendarDays className="w-3.5 h-3.5" />
+                <span>Schedule</span>
+              </button>
+            </div>
+
             <button
               onClick={() => {
                 setEditingAppointment(null);
                 setIsModalOpen(true);
               }}
-              className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-sm transition-colors"
+              className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-sm transition-colors cursor-pointer"
             >
               <Plus className="w-4 h-4" />
-              <span>Schedule Appointment</span>
+              <span>Book Your Appointment</span>
             </button>
-          )}
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-1 border-b border-slate-100">
+          <div>
+            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-brand-600" />
+              <span>Pet Service Visits & Appointments</span>
+            </h2>
+            <p className="text-xs text-slate-500">Scheduled clinic checkups, grooming sessions, and day visits</p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {/* View Mode Toggle */}
+            <div className="flex p-1 bg-slate-200/80 rounded-xl">
+              <button
+                onClick={() => setViewMode('list')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  viewMode === 'list' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <ListFilter className="w-3.5 h-3.5" />
+                <span>List</span>
+              </button>
+              <button
+                onClick={() => setViewMode('calendar')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  viewMode === 'calendar' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <CalendarDays className="w-3.5 h-3.5" />
+                <span>Schedule</span>
+              </button>
+            </div>
+
+            <button
+              onClick={() => {
+                setEditingAppointment(null);
+                setIsModalOpen(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-sm transition-colors cursor-pointer shrink-0"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Book Your Appointment</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Filter Row */}
       <div className="flex flex-wrap items-center gap-3">
@@ -401,7 +446,7 @@ export const AppointmentList = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="p-3.5 bg-white rounded-xl border border-slate-200 space-y-1">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pet Patient</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pet</p>
                 <p className="font-bold text-slate-900 text-sm">{viewingAppointment.pet_name}</p>
                 <p className="text-slate-500">{viewingAppointment.pet_species || 'Pet'}</p>
               </div>

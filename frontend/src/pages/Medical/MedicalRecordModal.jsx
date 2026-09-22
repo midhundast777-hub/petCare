@@ -55,7 +55,7 @@ export const MedicalRecordModal = ({ isOpen, onClose, onSaved }) => {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
-              Pet Patient *
+              Pet *
             </label>
             <select
               required

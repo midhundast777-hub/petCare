@@ -11,7 +11,7 @@ client = APIClient()
 print("--- Testing Pet Care CRM Backend Endpoints ---")
 
 # 1. Test Login
-response = client.post('/api/auth/login/', {'email': 'admin@petcare.com', 'password': 'Admin@123'})
+response = client.post('/api/auth/login/', {'email': 'midhundast07@gmail.com', 'password': 'Admin@123'})
 assert response.status_code == 200, f"Admin login failed: {response.data}"
 admin_token = response.data['access']
 print("[OK] Admin Login successful, JWT token obtained")

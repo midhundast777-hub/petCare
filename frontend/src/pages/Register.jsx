@@ -45,14 +45,21 @@ export const Register = () => {
     } catch (err) {
       const errorData = err.response?.data;
       let msg = 'Registration failed. Please check inputs.';
-      if (typeof errorData === 'string') {
+      if (!err.response) {
+        msg = 'Cannot connect to backend server. Please ensure the Django server is running at http://127.0.0.1:8000.';
+      } else if (typeof errorData === 'string') {
         msg = errorData;
       } else if (errorData?.detail) {
         msg = errorData.detail;
       } else if (errorData && typeof errorData === 'object') {
         const firstKey = Object.keys(errorData)[0];
         const val = errorData[firstKey];
-        msg = `${firstKey}: ${Array.isArray(val) ? val.join(', ') : val}`;
+        const valStr = Array.isArray(val) ? val.join(', ') : String(val);
+        if (firstKey === 'email' && valStr.toLowerCase().includes('already exists')) {
+          msg = 'An account with this email already exists. Please log in.';
+        } else {
+          msg = `${firstKey}: ${valStr}`;
+        }
       }
       addToast(msg, 'error');
     } finally {

@@ -14,7 +14,7 @@ except Exception as e:
 try:
     req = urllib.request.Request(
         "http://127.0.0.1:8000/api/auth/login/",
-        data=json.dumps({"email": "admin@petcare.com", "password": "Admin@123"}).encode('utf-8'),
+        data=json.dumps({"email": "midhundast07@gmail.com", "password": "Admin@123"}).encode('utf-8'),
         headers={"Content-Type": "application/json"}
     )
     with urllib.request.urlopen(req) as response:

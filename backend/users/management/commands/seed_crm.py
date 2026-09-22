@@ -22,7 +22,7 @@ class Command(BaseCommand):
 
         # 1. Create Users
         admin_user, _ = User.objects.get_or_create(
-            email='admin@petcare.com',
+            email='midhundast07@gmail.com',
             defaults={
                 'first_name': 'Eleanor',
                 'last_name': 'Vance',
@@ -79,20 +79,21 @@ class Command(BaseCommand):
 
         # 2. Services
         services_data = [
-            {'name': 'Full Grooming & Spa', 'category': Service.Category.GROOMING, 'price': 65.00, 'duration_minutes': 90, 'description': 'Full shampoo bath, blowout, styling haircut, ear cleaning, and paw pad balm.'},
-            {'name': 'Express Bath & Blowout', 'category': Service.Category.BATHING, 'price': 40.00, 'duration_minutes': 45, 'description': 'Hypoallergenic bath, high-velocity blowout, and thorough brush-out.'},
-            {'name': 'Nail Trimming & Paw Care', 'category': Service.Category.NAIL_TRIMMING, 'price': 20.00, 'duration_minutes': 20, 'description': 'Gentle nail clip and grind with soothing paw moisturizing balm.'},
-            {'name': 'Canine Behavioral Training', 'category': Service.Category.TRAINING, 'price': 80.00, 'duration_minutes': 60, 'description': 'One-on-one positive reinforcement session focusing on leash etiquette and reactivity.'},
-            {'name': 'Puppy Socialization Class', 'category': Service.Category.TRAINING, 'price': 35.00, 'duration_minutes': 45, 'description': 'Safe supervised group playtime and early obedience basics for puppies under 6 months.'},
-            {'name': 'Standard Boarding Suite', 'category': Service.Category.BOARDING, 'price': 45.00, 'duration_minutes': 1440, 'description': 'Cozy climate-controlled private kennel with orthopedic bed and 3 daily outdoor walks.'},
-            {'name': 'VIP Luxury Penthouse Boarding', 'category': Service.Category.BOARDING, 'price': 85.00, 'duration_minutes': 1440, 'description': 'Spacious suite with web-cam access, private patio, organic treats, and evening cuddle session.'},
-            {'name': 'Doggy Daycare (Full Day)', 'category': Service.Category.DAYCARE, 'price': 38.00, 'duration_minutes': 480, 'description': 'Supervised group agility play, splash pool access, and relaxing nap break.'},
-            {'name': 'Veterinary Wellness Exam', 'category': Service.Category.VETERINARY, 'price': 65.00, 'duration_minutes': 30, 'description': 'Comprehensive nose-to-tail physical exam, vital signs, weight check, and dental evaluation.'},
-            {'name': 'Pet Taxi Shuttle (One-Way)', 'category': Service.Category.TRANSPORTATION, 'price': 25.00, 'duration_minutes': 30, 'description': 'Safe air-conditioned door-to-door transport for your pet within a 15-mile radius.'},
+            {'name': 'Book Your Seat', 'category': Service.Category.OTHER, 'price': 45.00, 'duration_minutes': 60, 'description': 'Reserved pet care visit seat.', 'status': Service.Status.ACTIVE},
+            {'name': 'Full Grooming & Spa', 'category': Service.Category.GROOMING, 'price': 65.00, 'duration_minutes': 90, 'description': 'Full shampoo bath, blowout, styling haircut, ear cleaning, and paw pad balm.', 'status': Service.Status.INACTIVE},
+            {'name': 'Express Bath & Blowout', 'category': Service.Category.BATHING, 'price': 40.00, 'duration_minutes': 45, 'description': 'Hypoallergenic bath, high-velocity blowout, and thorough brush-out.', 'status': Service.Status.INACTIVE},
+            {'name': 'Nail Trimming & Paw Care', 'category': Service.Category.NAIL_TRIMMING, 'price': 20.00, 'duration_minutes': 20, 'description': 'Gentle nail clip and grind with soothing paw moisturizing balm.', 'status': Service.Status.INACTIVE},
+            {'name': 'Canine Behavioral Training', 'category': Service.Category.TRAINING, 'price': 80.00, 'duration_minutes': 60, 'description': 'One-on-one positive reinforcement session focusing on leash etiquette and reactivity.', 'status': Service.Status.INACTIVE},
+            {'name': 'Puppy Socialization Class', 'category': Service.Category.TRAINING, 'price': 35.00, 'duration_minutes': 45, 'description': 'Safe supervised group playtime and early obedience basics for puppies under 6 months.', 'status': Service.Status.INACTIVE},
+            {'name': 'Standard Boarding Suite', 'category': Service.Category.BOARDING, 'price': 45.00, 'duration_minutes': 1440, 'description': 'Cozy climate-controlled private kennel with orthopedic bed and 3 daily outdoor walks.', 'status': Service.Status.INACTIVE},
+            {'name': 'VIP Luxury Penthouse Boarding', 'category': Service.Category.BOARDING, 'price': 85.00, 'duration_minutes': 1440, 'description': 'Spacious suite with web-cam access, private patio, organic treats, and evening cuddle session.', 'status': Service.Status.INACTIVE},
+            {'name': 'Doggy Daycare (Full Day)', 'category': Service.Category.DAYCARE, 'price': 38.00, 'duration_minutes': 480, 'description': 'Supervised group agility play, splash pool access, and relaxing nap break.', 'status': Service.Status.INACTIVE},
+            {'name': 'Veterinary Wellness Exam', 'category': Service.Category.VETERINARY, 'price': 65.00, 'duration_minutes': 30, 'description': 'Comprehensive nose-to-tail physical exam, vital signs, weight check, and dental evaluation.', 'status': Service.Status.INACTIVE},
+            {'name': 'Pet Taxi Shuttle (One-Way)', 'category': Service.Category.TRANSPORTATION, 'price': 25.00, 'duration_minutes': 30, 'description': 'Safe air-conditioned door-to-door transport for your pet within a 15-mile radius.', 'status': Service.Status.INACTIVE},
         ]
         service_objs = {}
         for s in services_data:
-            obj, _ = Service.objects.get_or_create(name=s['name'], defaults=s)
+            obj, _ = Service.objects.update_or_create(name=s['name'], defaults=s)
             service_objs[s['name']] = obj
 
         # 3. Boarding Rooms
@@ -724,6 +725,6 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS("Successfully seeded Pet Care CRM demo data!"))
         self.stdout.write(self.style.SUCCESS("Demo credentials:"))
-        self.stdout.write("  Admin: admin@petcare.com / Admin@123")
+        self.stdout.write("  Admin: midhundast07@gmail.com / Admin@123")
         self.stdout.write("  Staff: staff@petcare.com / Staff@123")
         self.stdout.write("  Customer: customer@petcare.com / Customer@123")

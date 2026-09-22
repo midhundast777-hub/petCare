@@ -29,7 +29,7 @@ class Pet(models.Model):
     color = models.CharField(max_length=50, blank=True)
     weight = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, help_text="Weight in kg")
     microchip_number = models.CharField(max_length=50, blank=True, db_index=True)
-    photo = models.URLField(max_length=500, blank=True, default='')
+    photo = models.TextField(blank=True, default='')
     blood_group = models.CharField(max_length=20, blank=True)
     allergies = models.TextField(blank=True, help_text="Known pet allergies")
     medical_conditions = models.TextField(blank=True, help_text="Pre-existing medical conditions")

@@ -4,14 +4,14 @@ import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../context/ToastContext';
 import DataTable from '../../components/DataTable';
 import StaffModal from './StaffModal';
-import { UserCheck, Plus, Trash2, Mail, Phone, ShieldCheck, User, Edit2 } from 'lucide-react';
+import { UserCheck, Plus, Trash2, Mail, Phone, ShieldCheck, Edit2 } from 'lucide-react';
 
 export const StaffList = () => {
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, isStaff, isAdmin } = useAuth();
   const { addToast } = useToast();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [roleFilter, setRoleFilter] = useState('STAFF');
+  const [roleFilter, setRoleFilter] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState(null);
 
@@ -19,12 +19,10 @@ export const StaffList = () => {
     setLoading(true);
     try {
       const data = await authService.getUsers({
-        role: roleFilter || undefined,
+        role: roleFilter || 'TEAM',
       });
       const list = Array.isArray(data) ? data : data.results || [];
-      // If roleFilter is empty, show STAFF and ADMIN by default
-      const filtered = roleFilter ? list : list.filter(u => u.role === 'STAFF' || u.role === 'ADMIN');
-      setUsers(filtered);
+      setUsers(list);
     } catch (err) {
       console.error(err);
       addToast('Failed to load team directory', 'error');
@@ -34,21 +32,24 @@ export const StaffList = () => {
   };
 
   useEffect(() => {
-    fetchUsers();
-  }, [roleFilter]);
+    if (isStaff) {
+      fetchUsers();
+    }
+  }, [roleFilter, isStaff]);
 
   const handleDelete = async (id, name) => {
     if (id === currentUser?.id) {
-      addToast('You cannot delete your own logged-in administrator account.', 'error');
+      addToast('You cannot delete your own logged-in account.', 'error');
       return;
     }
     if (window.confirm(`Are you sure you want to remove staff member "${name}"? They will no longer be able to log in.`)) {
       try {
         await authService.deleteUser(id);
-        addToast(`Staff member ${name} removed`, 'info');
+        addToast(`Staff member "${name}" removed`, 'info');
         fetchUsers();
       } catch (err) {
-        addToast('Failed to delete staff member', 'error');
+        const detail = err.response?.data?.detail || 'Failed to delete staff member';
+        addToast(detail, 'error');
       }
     }
   };
@@ -146,6 +147,16 @@ export const StaffList = () => {
       ),
     },
   ];
+
+  if (!isStaff) {
+    return (
+      <div className="bg-white rounded-2xl border border-slate-200/80 p-8 text-center max-w-md mx-auto my-12 shadow-sm">
+        <ShieldCheck className="w-12 h-12 text-slate-400 mx-auto mb-3" />
+        <h2 className="text-base font-bold text-slate-800">Team Directory Restricted</h2>
+        <p className="text-xs text-slate-500 mt-1">This section is restricted to staff members and administrators.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">

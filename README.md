@@ -80,7 +80,7 @@ The database is pre-seeded with realistic data across all modules:
 
 | Role | Email | Password | Access Level |
 | :--- | :--- | :--- | :--- |
-| **Admin** | `admin@petcare.com` | `Admin@123` | Full CRM & clinic access (All modules, reports, billing, settings) |
+| **Admin** | `midhundast07@gmail.com` | `Admin@123` | Full CRM & clinic access (All modules, reports, billing, settings) |
 | **Staff** | `staff@petcare.com` | `Staff@123` | Daily Care, Boarding check-in/out, appointments, feeding, medications |
 | **Customer** | `customer@petcare.com` | `Customer@123` | Pet Parent portal (My pets, bookings, vaccine history, invoices) |
 

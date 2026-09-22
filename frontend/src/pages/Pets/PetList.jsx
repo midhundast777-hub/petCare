@@ -4,8 +4,9 @@ import { petService } from '../../services/petService';
 import { useToast } from '../../context/ToastContext';
 import DataTable from '../../components/DataTable';
 import PetModal from './PetModal';
+import OfflinePetModal from './OfflinePetModal';
 import { useAuth } from '../../hooks/useAuth';
-import { Dog, Plus, Eye, Edit2, Trash2, User, Sparkles } from 'lucide-react';
+import { Dog, Plus, Eye, Edit2, Trash2, User, Sparkles, UserPlus } from 'lucide-react';
 
 export const PetList = () => {
   const { isStaff, isAdmin } = useAuth();
@@ -14,6 +15,7 @@ export const PetList = () => {
   const [loading, setLoading] = useState(true);
   const [speciesFilter, setSpeciesFilter] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isOfflinePetModalOpen, setIsOfflinePetModalOpen] = useState(false);
   const [editingPet, setEditingPet] = useState(null);
 
   const fetchPets = async () => {
@@ -181,18 +183,28 @@ export const PetList = () => {
           </p>
         </div>
 
-        {!isAdmin && (
+        <div className="flex items-center gap-2.5 flex-wrap">
+          {(isAdmin || isStaff) && (
+            <button
+              onClick={() => setIsOfflinePetModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold shadow-sm transition-all hover:shadow-md cursor-pointer"
+            >
+              <UserPlus className="w-4 h-4" />
+              <span>Register Offline Pet</span>
+            </button>
+          )}
+
           <button
             onClick={() => {
               setEditingPet(null);
               setIsModalOpen(true);
             }}
-            className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-sm transition-colors"
+            className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-sm transition-colors cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>Register New Pet</span>
           </button>
-        )}
+        </div>
       </div>
 
       <DataTable
@@ -221,6 +233,14 @@ export const PetList = () => {
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
           pet={editingPet}
+          onSaved={fetchPets}
+        />
+      )}
+
+      {isOfflinePetModalOpen && (
+        <OfflinePetModal
+          isOpen={isOfflinePetModalOpen}
+          onClose={() => setIsOfflinePetModalOpen(false)}
           onSaved={fetchPets}
         />
       )}

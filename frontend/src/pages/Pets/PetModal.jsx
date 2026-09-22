@@ -1,15 +1,151 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Modal from '../../components/Modal';
 import { petService } from '../../services/petService';
 import { customerService } from '../../services/customerService';
+import { authService } from '../../services/authService';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../context/ToastContext';
+import { Camera, Upload, Trash2, Loader2 } from 'lucide-react';
+
+export const SPECIES_BREEDS = {
+  DOG: [
+    'Labrador Retriever',
+    'German Shepherd',
+    'Golden Retriever',
+    'French Bulldog',
+    'Bulldog',
+    'Beagle',
+    'Poodle',
+    'Rottweiler',
+    'Yorkshire Terrier',
+    'Boxer',
+    'Dachshund',
+    'Siberian Husky',
+    'Great Dane',
+    'Doberman Pinscher',
+    'Shih Tzu',
+    'Pug',
+    'Border Collie',
+    'Pomeranian',
+    'Chihuahua',
+    'Cocker Spaniel',
+    'Australian Shepherd',
+    'Basset Hound',
+    'Maltese',
+    'Indie / Desi (Indian Pariah)',
+    'Mixed Breed / Crossbreed',
+    'Other',
+  ],
+  CAT: [
+    'Persian',
+    'Siamese',
+    'Maine Coon',
+    'Bengal',
+    'British Shorthair',
+    'Ragdoll',
+    'Sphynx',
+    'American Shorthair',
+    'Abyssinian',
+    'Scottish Fold',
+    'Birman',
+    'Russian Blue',
+    'Burmese',
+    'Domestic Shorthair',
+    'Domestic Longhair',
+    'Indie / Indian Billi',
+    'Mixed Breed',
+    'Other',
+  ],
+  BIRD: [
+    'Budgerigar (Budgie / Parakeet)',
+    'Cockatiel',
+    'Lovebird',
+    'African Grey Parrot',
+    'Amazon Parrot',
+    'Conure',
+    'Cockatoo',
+    'Macaw',
+    'Canary',
+    'Finch',
+    'Pigeon / Dove',
+    'Lorikeet',
+    'Eclectus',
+    'Other',
+  ],
+  RABBIT: [
+    'Holland Lop',
+    'Mini Lop',
+    'Netherland Dwarf',
+    'Lionhead',
+    'Flemish Giant',
+    'Rex',
+    'Mini Rex',
+    'Angora',
+    'Dutch Rabbit',
+    'English Spot',
+    'Mixed Breed',
+    'Other',
+  ],
+  OTHER: [
+    'Hamster',
+    'Guinea Pig',
+    'Ferret',
+    'Turtle / Tortoise',
+    'Hedgehog',
+    'Bearded Dragon / Lizard',
+    'Chinchilla',
+    'Exotic / Other',
+  ],
+};
 
 export const PetModal = ({ isOpen, onClose, pet, onSaved, defaultOwnerId }) => {
   const { isCustomer } = useAuth();
   const { addToast } = useToast();
   const [loading, setLoading] = useState(false);
   const [customers, setCustomers] = useState([]);
+  const [customBreed, setCustomBreed] = useState('');
+  const petPhotoInputRef = useRef(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+  const handlePhotoFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      addToast('Please select a valid image file', 'error');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      addToast('Image exceeds 10MB limit', 'error');
+      return;
+    }
+
+    const preview = URL.createObjectURL(file);
+    setFormData((prev) => ({ ...prev, photo: preview }));
+
+    setUploadingPhoto(true);
+    try {
+      const res = await authService.uploadImage(file);
+      setFormData((prev) => ({ ...prev, photo: res.url }));
+      addToast('Pet photo uploaded successfully!', 'success');
+    } catch (err) {
+      console.warn('Backend image upload failed, falling back to local base64:', err);
+      const reader = new FileReader();
+      reader.onload = () => {
+        setFormData((prev) => ({ ...prev, photo: reader.result }));
+        addToast('Pet photo loaded from local image', 'info');
+      };
+      reader.readAsDataURL(file);
+    } finally {
+      setUploadingPhoto(false);
+      if (petPhotoInputRef.current) petPhotoInputRef.current.value = '';
+    }
+  };
+
+  const handleRemovePhoto = () => {
+    setFormData((prev) => ({ ...prev, photo: '' }));
+  };
   const [formData, setFormData] = useState({
     name: '',
     owner: '',
@@ -42,6 +178,13 @@ export const PetModal = ({ isOpen, onClose, pet, onSaved, defaultOwnerId }) => {
 
   useEffect(() => {
     if (pet) {
+      const speciesList = SPECIES_BREEDS[pet.species || 'DOG'] || [];
+      if (pet.breed && !speciesList.includes(pet.breed) && pet.breed !== 'Other') {
+        setCustomBreed(pet.breed);
+      } else {
+        setCustomBreed('');
+      }
+
       setFormData({
         name: pet.name || '',
         owner: pet.owner || defaultOwnerId || '',
@@ -63,6 +206,7 @@ export const PetModal = ({ isOpen, onClose, pet, onSaved, defaultOwnerId }) => {
         status: pet.status || 'ACTIVE',
       });
     } else {
+      setCustomBreed('');
       setFormData({
         name: '',
         owner: defaultOwnerId || '',
@@ -86,6 +230,24 @@ export const PetModal = ({ isOpen, onClose, pet, onSaved, defaultOwnerId }) => {
     }
   }, [pet, isOpen, defaultOwnerId]);
 
+  const handleSpeciesChange = (e) => {
+    const newSpecies = e.target.value;
+    setFormData((prev) => ({
+      ...prev,
+      species: newSpecies,
+      breed: '',
+    }));
+    setCustomBreed('');
+  };
+
+  const handleBreedChange = (e) => {
+    const val = e.target.value;
+    setFormData((prev) => ({ ...prev, breed: val }));
+    if (val !== 'Other') {
+      setCustomBreed('');
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -96,6 +258,9 @@ export const PetModal = ({ isOpen, onClose, pet, onSaved, defaultOwnerId }) => {
     }
     if (!payload.date_of_birth) delete payload.date_of_birth;
     if (payload.weight === '' || payload.weight === null) delete payload.weight;
+    if (formData.breed === 'Other' && customBreed.trim()) {
+      payload.breed = customBreed.trim();
+    }
 
     try {
       if (pet?.id) {
@@ -179,8 +344,8 @@ export const PetModal = ({ isOpen, onClose, pet, onSaved, defaultOwnerId }) => {
             </label>
             <select
               value={formData.species}
-              onChange={(e) => setFormData({ ...formData, species: e.target.value })}
-              className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500/20"
+              onChange={handleSpeciesChange}
+              className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500/20 font-semibold"
             >
               <option value="DOG">Dog</option>
               <option value="CAT">Cat</option>
@@ -194,13 +359,35 @@ export const PetModal = ({ isOpen, onClose, pet, onSaved, defaultOwnerId }) => {
             <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
               Breed
             </label>
-            <input
-              type="text"
+            <select
               value={formData.breed}
-              onChange={(e) => setFormData({ ...formData, breed: e.target.value })}
-              placeholder="e.g. Golden Retriever"
+              onChange={handleBreedChange}
               className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500/20"
-            />
+            >
+              <option value="">Select Breed...</option>
+              {(SPECIES_BREEDS[formData.species] || SPECIES_BREEDS.OTHER).map((b) => (
+                <option key={b} value={b}>
+                  {b}
+                </option>
+              ))}
+              {formData.breed &&
+                formData.breed !== 'Other' &&
+                !(SPECIES_BREEDS[formData.species] || []).includes(formData.breed) && (
+                  <option value={formData.breed}>{formData.breed}</option>
+                )}
+            </select>
+
+            {formData.breed === 'Other' && (
+              <div className="mt-1.5">
+                <input
+                  type="text"
+                  placeholder="Specify breed..."
+                  value={customBreed}
+                  onChange={(e) => setCustomBreed(e.target.value)}
+                  className="w-full px-3 py-1.5 bg-white border border-brand-300 rounded-xl text-xs focus:ring-2 focus:ring-brand-500/20"
+                />
+              </div>
+            )}
           </div>
 
           <div>
@@ -259,32 +446,71 @@ export const PetModal = ({ isOpen, onClose, pet, onSaved, defaultOwnerId }) => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
-              Microchip Number
-            </label>
-            <input
-              type="text"
-              value={formData.microchip_number}
-              onChange={(e) => setFormData({ ...formData, microchip_number: e.target.value })}
-              placeholder="15-digit ISO microchip"
-              className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500/20 font-mono"
-            />
+        {/* Pet Photo */}
+        <div>
+          <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
+            Pet Photo
+          </label>
+          <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              {formData.photo ? (
+                <img
+                  src={formData.photo}
+                  alt="Pet preview"
+                  className="w-12 h-12 rounded-xl object-cover border border-slate-200 shadow-sm shrink-0 bg-white"
+                />
+              ) : (
+                <div className="w-12 h-12 rounded-xl bg-slate-200 text-slate-400 flex items-center justify-center shrink-0">
+                  <Camera className="w-5 h-5" />
+                </div>
+              )}
+              <div>
+                <p className="text-xs font-bold text-slate-800">
+                  {formData.photo ? 'Pet photo selected' : 'No photo uploaded'}
+                </p>
+                <p className="text-[11px] text-slate-500">
+                  Upload an image from your computer (PNG, JPG, WEBP)
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => petPhotoInputRef.current?.click()}
+                disabled={uploadingPhoto}
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-50"
+              >
+                {uploadingPhoto ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Uploading...</span>
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>{formData.photo ? 'Change Photo' : 'Upload Photo'}</span>
+                  </>
+                )}
+              </button>
+              {formData.photo && (
+                <button
+                  type="button"
+                  onClick={handleRemovePhoto}
+                  className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition cursor-pointer"
+                  title="Remove photo"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           </div>
-
-          <div>
-            <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
-              Photo URL
-            </label>
-            <input
-              type="url"
-              value={formData.photo}
-              onChange={(e) => setFormData({ ...formData, photo: e.target.value })}
-              placeholder="https://images.unsplash.com/..."
-              className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500/20"
-            />
-          </div>
+          <input
+            type="file"
+            ref={petPhotoInputRef}
+            onChange={handlePhotoFileChange}
+            accept="image/*"
+            className="hidden"
+          />
         </div>
 
         {/* Health & Diet Fields */}

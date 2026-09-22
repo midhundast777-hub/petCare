@@ -1,19 +1,23 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Modal from '../../components/Modal';
 import { authService } from '../../services/authService';
 import { useToast } from '../../context/ToastContext';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Upload, Trash2, Loader2, User } from 'lucide-react';
 
 export const StaffModal = ({ isOpen, onClose, staffMember, onSaved }) => {
   const { addToast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const fileInputRef = useRef(null);
+
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
     email: '',
     phone: '',
     role: 'STAFF',
+    avatar: '',
     password: '',
   });
 
@@ -28,6 +32,7 @@ export const StaffModal = ({ isOpen, onClose, staffMember, onSaved }) => {
           email: staffMember.email || '',
           phone: staffMember.phone || '',
           role: staffMember.role || 'STAFF',
+          avatar: staffMember.avatar || '',
           password: '',
         });
       } else {
@@ -37,6 +42,7 @@ export const StaffModal = ({ isOpen, onClose, staffMember, onSaved }) => {
           email: '',
           phone: '',
           role: 'STAFF',
+          avatar: '',
           password: '',
         });
       }
@@ -44,13 +50,66 @@ export const StaffModal = ({ isOpen, onClose, staffMember, onSaved }) => {
     }
   }, [isOpen, staffMember]);
 
+  const handleImageChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      addToast('Please select a valid image file (JPG, PNG, GIF, WEBP).', 'error');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      addToast('Image size exceeds 10MB limit.', 'error');
+      return;
+    }
+
+    // Instant local preview
+    const previewUrl = URL.createObjectURL(file);
+    setFormData((prev) => ({ ...prev, avatar: previewUrl }));
+
+    setUploadingAvatar(true);
+    try {
+      const res = await authService.uploadAvatar(file);
+      setFormData((prev) => ({ ...prev, avatar: res.url }));
+      addToast('Staff photo uploaded successfully.', 'success');
+    } catch (uploadErr) {
+      console.warn('Backend avatar upload failed, falling back to data URL:', uploadErr);
+      const reader = new FileReader();
+      reader.onload = () => {
+        setFormData((prev) => ({ ...prev, avatar: reader.result }));
+        addToast('Staff photo loaded locally.', 'info');
+      };
+      reader.readAsDataURL(file);
+    } finally {
+      setUploadingAvatar(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleRemoveAvatar = () => {
+    setFormData((prev) => ({ ...prev, avatar: '' }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
-    const payload = { ...formData };
-    if (isEdit && !payload.password) {
-      delete payload.password; // Don't overwrite password if left blank
+    const payload = {
+      first_name: formData.first_name.trim(),
+      last_name: formData.last_name.trim(),
+      email: formData.email.trim().toLowerCase(),
+      phone: formData.phone.trim(),
+      role: formData.role,
+      avatar: formData.avatar || '',
+    };
+
+    if (formData.password && formData.password.trim()) {
+      payload.password = formData.password.trim();
+    } else if (!isEdit) {
+      addToast('Please provide a password for new staff account.', 'error');
+      setLoading(false);
+      return;
     }
 
     try {
@@ -86,10 +145,82 @@ export const StaffModal = ({ isOpen, onClose, staffMember, onSaved }) => {
       isOpen={isOpen}
       onClose={onClose}
       title={isEdit ? `Edit Staff Member (${staffMember?.full_name})` : 'Add New Staff Member'}
-      subtitle={isEdit ? 'Update staff profile, contact number, role, or reset password' : 'Register a new veterinary doctor, groomer, or facility administrator'}
+      subtitle={
+        isEdit
+          ? 'Update staff profile, contact number, role, photo, or reset password'
+          : 'Register a new veterinary doctor, groomer, or facility team member'
+      }
       maxWidth="max-w-xl"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Avatar Upload Section */}
+        <div>
+          <label className="block text-xs font-bold uppercase text-slate-700 mb-1.5">
+            Staff Profile Photo
+          </label>
+          <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              {formData.avatar ? (
+                <img
+                  src={formData.avatar}
+                  alt="Staff preview"
+                  className="w-14 h-14 rounded-xl object-cover border border-slate-200 shadow-sm bg-white shrink-0"
+                />
+              ) : (
+                <div className="w-14 h-14 rounded-xl bg-gradient-to-tr from-brand-600 to-brand-400 text-white flex items-center justify-center font-bold text-lg shadow-sm shrink-0">
+                  {formData.first_name?.[0] || 'S'}{formData.last_name?.[0] || 'M'}
+                </div>
+              )}
+              <div>
+                <p className="text-xs font-bold text-slate-800">
+                  {formData.avatar ? 'Photo selected' : 'No photo uploaded'}
+                </p>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Click below to select a staff avatar or badge photo
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <input
+                type="file"
+                ref={fileInputRef}
+                accept="image/*"
+                className="hidden"
+                onChange={handleImageChange}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingAvatar}
+                className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-sm transition-colors cursor-pointer disabled:opacity-50"
+              >
+                {uploadingAvatar ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Uploading...</span>
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>{formData.avatar ? 'Change' : 'Upload'}</span>
+                  </>
+                )}
+              </button>
+              {formData.avatar && (
+                <button
+                  type="button"
+                  onClick={handleRemoveAvatar}
+                  title="Remove Photo"
+                  className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors border border-slate-200"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-bold uppercase text-slate-700 mb-1">

@@ -62,11 +62,31 @@ class AppointmentListCreateView(generics.ListCreateAPIView):
         user = self.request.user
         if user.role == 'CUSTOMER' and not user.is_superuser:
             customer = Customer.objects.filter(user=user).first()
+            if not customer:
+                customer = Customer.objects.filter(email__iexact=user.email).first()
+                if customer and not customer.user:
+                    customer.user = user
+                    customer.save(update_fields=['user'])
+            if not customer:
+                pet_id = self.request.data.get('pet')
+                if pet_id:
+                    from pets.models import Pet
+                    pet_obj = Pet.objects.filter(id=pet_id).first()
+                    if pet_obj and pet_obj.owner:
+                        customer = pet_obj.owner
+                        if not customer.user:
+                            customer.user = user
+                            customer.save(update_fields=['user'])
             if customer:
                 serializer.save(customer=customer, status=Appointment.Status.PENDING)
             else:
-                serializer.save()
+                serializer.save(status=Appointment.Status.PENDING)
         else:
+            if not serializer.validated_data.get('customer'):
+                pet = serializer.validated_data.get('pet')
+                if pet and pet.owner:
+                    serializer.save(customer=pet.owner)
+                    return
             serializer.save()
 
 class AppointmentDetailView(generics.RetrieveUpdateDestroyAPIView):

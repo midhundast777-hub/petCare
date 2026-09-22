@@ -13,7 +13,7 @@ class PetListCreateView(generics.ListCreateAPIView):
         queryset = Pet.objects.all()
 
         if user.role == 'CUSTOMER' and not user.is_superuser:
-            queryset = queryset.filter(owner__user=user)
+            queryset = queryset.filter(Q(owner__user=user) | Q(owner__email__iexact=user.email))
 
         # Filters
         species = self.request.query_params.get('species')

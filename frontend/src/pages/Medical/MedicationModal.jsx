@@ -63,7 +63,7 @@ export const MedicationModal = ({ isOpen, onClose, onSaved }) => {
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
-            Pet Patient *
+            Pet *
           </label>
           <select
             required

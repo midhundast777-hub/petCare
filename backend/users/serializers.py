@@ -29,15 +29,19 @@ class RegisterSerializer(serializers.ModelSerializer):
             phone=validated_data.get('phone', '')
         )
         if role == User.Role.CUSTOMER:
-            Customer.objects.get_or_create(
-                user=user,
-                defaults={
-                    'first_name': user.first_name or 'Valued',
-                    'last_name': user.last_name or 'Customer',
-                    'email': user.email,
-                    'phone': user.phone or '000-000-0000',
-                }
-            )
+            existing_cust = Customer.objects.filter(email__iexact=user.email).first()
+            if existing_cust:
+                if not existing_cust.user:
+                    existing_cust.user = user
+                    existing_cust.save(update_fields=['user'])
+            else:
+                Customer.objects.create(
+                    user=user,
+                    first_name=user.first_name or 'Valued',
+                    last_name=user.last_name or 'Customer',
+                    email=user.email,
+                    phone=user.phone or '000-000-0000',
+                )
         return user
 
 class AdminCreateUserSerializer(serializers.ModelSerializer):
@@ -46,6 +50,16 @@ class AdminCreateUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ('id', 'email', 'password', 'first_name', 'last_name', 'role', 'phone', 'avatar')
+
+    def validate_email(self, value):
+        norm = value.strip().lower()
+        instance = getattr(self, 'instance', None)
+        qs = User.objects.filter(email__iexact=norm)
+        if instance:
+            qs = qs.exclude(pk=instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError("A user with this email address already exists.")
+        return norm
 
     def create(self, validated_data):
         password = validated_data.get('password')

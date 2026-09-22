@@ -16,6 +16,7 @@ import CustomerList from './pages/Customers/CustomerList';
 import CustomerDetail from './pages/Customers/CustomerDetail';
 import PetList from './pages/Pets/PetList';
 import PetDetail from './pages/Pets/PetDetail';
+import BookingsHub from './pages/Bookings/BookingsHub';
 import AppointmentList from './pages/Appointments/AppointmentList';
 import BoardingList from './pages/Boarding/BoardingList';
 import VaccinationList from './pages/Vaccinations/VaccinationList';
@@ -80,11 +81,10 @@ export function App() {
               <Route path="/pets" element={<PetList />} />
               <Route path="/pets/:id" element={<PetDetail />} />
 
-              {/* Appointments */}
-              <Route path="/appointments" element={<AppointmentList />} />
-
-              {/* Boarding */}
-              <Route path="/boarding" element={<BoardingList />} />
+              {/* Bookings & Boarding (Unified Hub) */}
+              <Route path="/bookings" element={<BookingsHub />} />
+              <Route path="/appointments" element={<BookingsHub initialTab="appointments" />} />
+              <Route path="/boarding" element={<BookingsHub initialTab="boarding" />} />
 
               {/* Vaccinations */}
               <Route path="/vaccinations" element={<VaccinationList />} />

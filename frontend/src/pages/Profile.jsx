@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../context/ToastContext';
 import { boardingService } from '../services/boardingService';
-import { User, Mail, Phone, Shield, Calendar, Camera, Home, Dog, Clock, CheckCircle2 } from 'lucide-react';
+import { authService } from '../services/authService';
+import { User, Mail, Phone, Shield, Calendar, Camera, Home, Dog, Clock, CheckCircle2, Upload, Trash2, Loader2, Image as ImageIcon } from 'lucide-react';
 
 export const Profile = () => {
   const { user, updateProfile, isAdmin, isStaff } = useAuth();
@@ -17,6 +18,52 @@ export const Profile = () => {
     phone: user?.phone || '',
     avatar: user?.avatar || '',
   });
+
+  const fileInputRef = useRef(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [showUrlInput, setShowUrlInput] = useState(false);
+
+  const handleAvatarFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      addToast('Please select a valid image file (PNG, JPG, WEBP, GIF, SVG)', 'error');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      addToast('Image size exceeds 10MB limit', 'error');
+      return;
+    }
+
+    // Instant local preview
+    const previewUrl = URL.createObjectURL(file);
+    setFormData((prev) => ({ ...prev, avatar: previewUrl }));
+
+    setUploadingAvatar(true);
+    try {
+      const res = await authService.uploadAvatar(file);
+      setFormData((prev) => ({ ...prev, avatar: res.url }));
+      addToast('Avatar uploaded successfully! Remember to save profile changes.', 'success');
+    } catch (uploadErr) {
+      console.warn('Backend avatar upload failed, falling back to local base64:', uploadErr);
+      const reader = new FileReader();
+      reader.onload = () => {
+        setFormData((prev) => ({ ...prev, avatar: reader.result }));
+        addToast('Avatar loaded. Remember to click "Save Profile Changes".', 'info');
+      };
+      reader.readAsDataURL(file);
+    } finally {
+      setUploadingAvatar(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleRemoveAvatar = () => {
+    setFormData((prev) => ({ ...prev, avatar: '' }));
+    addToast('Avatar removed. Click "Save Profile Changes" to confirm.', 'info');
+  };
 
   const fetchBookings = async () => {
     try {
@@ -58,17 +105,40 @@ export const Profile = () => {
         {/* Banner */}
         <div className="h-28 bg-gradient-to-r from-brand-600 via-brand-500 to-teal-600 p-6 flex items-end">
           <div className="relative translate-y-12 flex items-end gap-4">
-            {formData.avatar ? (
-              <img
-                src={formData.avatar}
-                alt={user?.full_name}
-                className="w-20 h-20 rounded-2xl object-cover border-4 border-white shadow-md bg-white"
-              />
-            ) : (
-              <div className="w-20 h-20 rounded-2xl bg-slate-100 text-slate-600 font-bold text-2xl flex items-center justify-center border-4 border-white shadow-md">
-                {user?.first_name?.[0] || 'U'}
-              </div>
-            )}
+            <div className="relative group">
+              {formData.avatar ? (
+                <img
+                  src={formData.avatar}
+                  alt={user?.full_name}
+                  className="w-24 h-24 rounded-2xl object-cover border-4 border-white shadow-md bg-white"
+                />
+              ) : (
+                <div className="w-24 h-24 rounded-2xl bg-slate-100 text-slate-600 font-bold text-3xl flex items-center justify-center border-4 border-white shadow-md">
+                  {user?.first_name?.[0] || 'U'}
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingAvatar}
+                className="absolute -bottom-1 -right-1 p-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl shadow-md border-2 border-white transition-all transform hover:scale-105 cursor-pointer disabled:opacity-50"
+                title="Upload image"
+                aria-label="Upload image"
+              >
+                {uploadingAvatar ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
+              </button>
+            </div>
+            <div className="mb-2">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingAvatar}
+                className="text-xs font-bold text-white bg-black/40 hover:bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/20 shadow transition cursor-pointer flex items-center gap-1.5"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                <span>{uploadingAvatar ? 'Uploading...' : 'Upload Photo'}</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -133,17 +203,97 @@ export const Profile = () => {
             />
           </div>
 
+          {/* Avatar Image Upload */}
           <div>
-            <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
-              Avatar Image URL
+            <label className="block text-xs font-bold uppercase text-slate-700 mb-1.5">
+              Avatar Image
             </label>
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3.5">
+                {formData.avatar ? (
+                  <img
+                    src={formData.avatar}
+                    alt="Avatar preview"
+                    className="w-14 h-14 rounded-xl object-cover border border-slate-200 shadow-sm bg-white shrink-0"
+                  />
+                ) : (
+                  <div className="w-14 h-14 rounded-xl bg-slate-200 text-slate-500 flex items-center justify-center font-bold text-xl shrink-0">
+                    <User className="w-6 h-6 text-slate-400" />
+                  </div>
+                )}
+                <div>
+                  <p className="text-xs font-bold text-slate-800">
+                    {formData.avatar ? 'Avatar image selected' : 'No avatar image uploaded'}
+                  </p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Click "Upload Image" to select a photo from your computer
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingAvatar}
+                  className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-sm transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  {uploadingAvatar ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Uploading...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>{formData.avatar ? 'Change Image' : 'Upload Image'}</span>
+                    </>
+                  )}
+                </button>
+                {formData.avatar && (
+                  <button
+                    type="button"
+                    onClick={handleRemoveAvatar}
+                    disabled={uploadingAvatar}
+                    className="inline-flex items-center justify-center gap-1 px-3 py-2 bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 rounded-xl text-xs font-bold transition-colors cursor-pointer disabled:opacity-50"
+                    title="Remove avatar"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Remove</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Hidden native file input */}
             <input
-              type="url"
-              value={formData.avatar}
-              onChange={(e) => setFormData({ ...formData, avatar: e.target.value })}
-              placeholder="https://images.unsplash.com/..."
-              className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500/20"
+              type="file"
+              ref={fileInputRef}
+              onChange={handleAvatarFileChange}
+              accept="image/png, image/jpeg, image/webp, image/gif, image/svg+xml, image/*"
+              className="hidden"
             />
+
+            <div className="mt-2 text-right">
+              <button
+                type="button"
+                onClick={() => setShowUrlInput(!showUrlInput)}
+                className="text-[11px] text-slate-500 hover:text-brand-600 font-semibold underline underline-offset-2 transition-colors cursor-pointer"
+              >
+                {showUrlInput ? 'Hide image URL link input' : 'Or paste an image URL instead'}
+              </button>
+            </div>
+            {showUrlInput && (
+              <div className="mt-2">
+                <input
+                  type="url"
+                  value={formData.avatar}
+                  onChange={(e) => setFormData({ ...formData, avatar: e.target.value })}
+                  placeholder="https://images.unsplash.com/..."
+                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-brand-500/20"
+                />
+              </div>
+            )}
           </div>
 
           <div className="pt-4 border-t border-slate-100 flex justify-end">
@@ -232,11 +382,15 @@ export const Profile = () => {
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs bg-white p-3 rounded-xl border border-slate-200/60">
                   <div>
                     <span className="block text-[10px] uppercase font-bold text-slate-400">Check-In</span>
-                    <span className="font-bold text-slate-800">{b.check_in_date || '-'}</span>
+                    <span className="font-bold text-slate-800">
+                      {b.check_in_date || '-'} {b.check_in_time ? `(${b.check_in_time.slice(0, 5)})` : ''}
+                    </span>
                   </div>
                   <div>
                     <span className="block text-[10px] uppercase font-bold text-slate-400">Expected Check-Out</span>
-                    <span className="font-bold text-slate-800">{b.expected_check_out_date || '-'}</span>
+                    <span className="font-bold text-slate-800">
+                      {b.expected_check_out_date || '-'} {b.check_out_time ? `(${b.check_out_time.slice(0, 5)})` : ''}
+                    </span>
                   </div>
                   <div>
                     <span className="block text-[10px] uppercase font-bold text-slate-400">Assigned Room</span>

@@ -1,7 +1,12 @@
+import os
+import uuid
 from django.db import models
+from django.conf import settings
+from django.core.files.storage import default_storage
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .models import User
 from .serializers import UserSerializer, RegisterSerializer, CustomTokenObtainPairSerializer, AdminCreateUserSerializer
@@ -64,15 +69,22 @@ class UserListView(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         user = self.request.user
-        if not (user.role == 'ADMIN' or user.is_superuser):
-            raise PermissionDenied("Only administrators can create staff or user accounts.")
+        if not (user.role in ['ADMIN', 'STAFF'] or user.is_superuser):
+            raise PermissionDenied("Only administrators and staff can create staff or user accounts.")
         serializer.save()
 
     def get_queryset(self):
         queryset = User.objects.all()
         role = self.request.query_params.get('role')
         if role:
-            queryset = queryset.filter(role=role.upper())
+            role_upper = role.upper()
+            if role_upper in ['TEAM', 'ALL_TEAM']:
+                queryset = queryset.filter(role__in=[User.Role.STAFF, User.Role.ADMIN])
+            elif ',' in role_upper:
+                roles = [r.strip() for r in role_upper.split(',') if r.strip()]
+                queryset = queryset.filter(role__in=roles)
+            else:
+                queryset = queryset.filter(role=role_upper)
         search = self.request.query_params.get('search')
         if search:
             queryset = queryset.filter(
@@ -84,9 +96,59 @@ class UserListView(generics.ListCreateAPIView):
 
 class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = User.objects.all()
-    permission_classes = [IsAdminUserRole]
+    permission_classes = [IsStaffOrAdmin]
 
     def get_serializer_class(self):
         if self.request.method in ['PUT', 'PATCH']:
             return AdminCreateUserSerializer
         return UserSerializer
+
+    def perform_update(self, serializer):
+        user = self.request.user
+        target_user = self.get_object()
+        if target_user.role == User.Role.ADMIN and user.role != User.Role.ADMIN and not user.is_superuser:
+            raise PermissionDenied("Staff members cannot modify an administrator account.")
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        user = self.request.user
+        if instance == user:
+            raise PermissionDenied("You cannot delete your own account.")
+        if instance.role == User.Role.ADMIN and user.role != User.Role.ADMIN and not user.is_superuser:
+            raise PermissionDenied("Staff members cannot delete an administrator account.")
+        instance.delete()
+
+class UploadAvatarView(APIView):
+    permission_classes = [permissions.AllowAny]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request, *args, **kwargs):
+        file_obj = request.FILES.get('file') or request.FILES.get('avatar') or request.FILES.get('image')
+        if not file_obj:
+            return Response({'detail': 'No image file uploaded.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        allowed_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg']
+        ext = os.path.splitext(file_obj.name)[1].lower()
+        if ext not in allowed_extensions:
+            return Response(
+                {'detail': f'Unsupported file format "{ext}". Allowed formats: JPG, PNG, GIF, WEBP, SVG.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if file_obj.size > 10 * 1024 * 1024:
+            return Response({'detail': 'Image size exceeds 10MB limit.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        filename = f"avatars/{uuid.uuid4().hex}{ext}"
+        saved_path = default_storage.save(filename, file_obj)
+
+        file_url = request.build_absolute_uri(settings.MEDIA_URL + saved_path)
+
+        if request.user and request.user.is_authenticated and request.query_params.get('save_to_user', 'false').lower() == 'true':
+            request.user.avatar = file_url
+            request.user.save(update_fields=['avatar'])
+
+        return Response({
+            'url': file_url,
+            'path': saved_path,
+            'message': 'Image uploaded successfully.'
+        }, status=status.HTTP_201_CREATED)

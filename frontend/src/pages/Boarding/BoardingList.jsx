@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { boardingService } from '../../services/boardingService';
+import { authService } from '../../services/authService';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../hooks/useAuth';
 import DataTable from '../../components/DataTable';
@@ -20,16 +21,19 @@ import {
   ShieldCheck,
   CheckCircle2,
   Sparkles,
-  Eye
+  Eye,
+  Camera,
+  UploadCloud
 } from 'lucide-react';
 
-export const BoardingList = () => {
+export const BoardingList = ({ isEmbedded = false }) => {
   const { isStaff, isAdmin } = useAuth();
   const { addToast } = useToast();
   const [bookings, setBookings] = useState([]);
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
+  const [uploadingStayPhoto, setUploadingStayPhoto] = useState(false);
 
   // Modals
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
@@ -139,6 +143,63 @@ export const BoardingList = () => {
     }
   };
 
+  const handleModalPhotoUpload = async (file) => {
+    if (!file || !viewingBooking) return;
+    if (!file.type.startsWith('image/')) {
+      addToast('Please select a valid image file.', 'error');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      addToast('Image size exceeds 10MB limit.', 'error');
+      return;
+    }
+
+    setUploadingStayPhoto(true);
+    try {
+      let photoUrl = '';
+      try {
+        const uploadRes = await authService.uploadImage(file);
+        photoUrl = uploadRes.url || uploadRes.avatar_url || uploadRes.file_url;
+      } catch (e) {
+        photoUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      }
+
+      if (!photoUrl) throw new Error('No photo URL generated');
+
+      const nowIso = new Date().toISOString();
+      await boardingService.updateBooking(viewingBooking.id, {
+        stay_photo: photoUrl,
+        stay_photo_updated_at: nowIso,
+      });
+
+      setViewingBooking((prev) => ({
+        ...prev,
+        stay_photo: photoUrl,
+        stay_photo_updated_at: nowIso,
+      }));
+
+      setBookings((prev) =>
+        prev.map((b) =>
+          b.id === viewingBooking.id
+            ? { ...b, stay_photo: photoUrl, stay_photo_updated_at: nowIso }
+            : b
+        )
+      );
+
+      addToast(`Stay photo for ${viewingBooking.pet_name} updated! Visible to owner.`, 'success');
+    } catch (err) {
+      console.error('Failed to upload stay photo:', err);
+      addToast('Failed to upload stay photo', 'error');
+    } finally {
+      setUploadingStayPhoto(false);
+    }
+  };
+
   const statusBadge = (status) => {
     if (status === 'RESERVED') {
       return (
@@ -207,8 +268,19 @@ export const BoardingList = () => {
       header: 'Pet & Owner',
       render: (row) => (
         <div>
-          <span className="font-bold text-slate-900 text-xs">{row.pet_name}</span>
-          <span className="text-[11px] text-slate-400 ml-1.5">({row.pet_species})</span>
+          <div className="flex items-center gap-1.5">
+            <span className="font-bold text-slate-900 text-xs">{row.pet_name}</span>
+            <span className="text-[11px] text-slate-400">({row.pet_species})</span>
+            {row.stay_photo && (
+              <span
+                title="Daily stay photo uploaded"
+                className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-full text-[9px] font-black bg-emerald-100 text-emerald-800"
+              >
+                <Camera className="w-2.5 h-2.5" />
+                <span>Photo</span>
+              </span>
+            )}
+          </div>
           <p className="text-xs text-slate-600 mt-0.5">{row.customer_name}</p>
         </div>
       ),
@@ -217,8 +289,12 @@ export const BoardingList = () => {
       header: 'Stay Dates',
       render: (row) => (
         <div className="text-xs">
-          <p className="text-slate-800 font-semibold">In: {row.check_in_date}</p>
-          <p className="text-slate-500">Out: {row.expected_check_out_date}</p>
+          <p className="text-slate-800 font-semibold">
+            In: {row.check_in_date} {row.check_in_time ? `(${row.check_in_time.slice(0, 5)})` : ''}
+          </p>
+          <p className="text-slate-500">
+            Out: {row.expected_check_out_date} {row.check_out_time ? `(${row.check_out_time.slice(0, 5)})` : ''}
+          </p>
         </div>
       ),
     },
@@ -264,52 +340,57 @@ export const BoardingList = () => {
             <span>Care Logs</span>
           </button>
 
-          {/* Check In & Check Out as 2 persistent buttons */}
-          {!isAdmin && isStaff && (
+          {/* Action buttons matching Boarding Stay Lifecycle */}
+          {(isStaff || isAdmin) && (
             <div className="flex items-center gap-1.5">
-              {/* Button 1: Check In */}
-              <button
-                onClick={() => openChecklist(row, 'checkin')}
-                disabled={row.status === 'CHECKED_IN'}
-                title={
-                  row.status === 'CHECKED_IN'
-                    ? 'Guest is currently checked in'
-                    : 'Check in this pet & select kennel suite occupancy'
-                }
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
-                  row.status === 'CHECKED_IN'
-                    ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed opacity-50'
-                    : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm cursor-pointer'
-                }`}
-              >
-                <LogIn className="w-3.5 h-3.5" />
-                <span>Check In</span>
-              </button>
+              {/* Step 1: RESERVED - Check In */}
+              {row.status === 'RESERVED' && (
+                <button
+                  onClick={() => openChecklist(row, 'checkin')}
+                  title="Check in this pet & select kennel suite occupancy"
+                  className="flex items-center gap-1 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-sm transition-colors cursor-pointer"
+                >
+                  <LogIn className="w-3.5 h-3.5" />
+                  <span>Check In</span>
+                </button>
+              )}
 
-              {/* Button 2: Check Out */}
-              <button
-                onClick={() => openChecklist(row, 'checkout')}
-                disabled={row.status !== 'CHECKED_IN'}
-                title={
-                  row.status !== 'CHECKED_IN'
-                    ? row.status === 'CHECKED_OUT'
-                      ? 'Stay has already checked out'
-                      : 'Pet must be checked in before check-out'
-                    : 'Departure Protocol & Check Out'
-                }
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
-                  row.status !== 'CHECKED_IN'
-                    ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed opacity-50'
-                    : 'bg-sky-600 hover:bg-sky-700 text-white shadow-sm cursor-pointer'
-                }`}
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                <span>Check Out</span>
-              </button>
+              {/* Step 2: CHECKED_IN - Suite & Intake + Check Out */}
+              {row.status === 'CHECKED_IN' && (
+                <>
+                  <button
+                    onClick={() => openChecklist(row, 'checkin')}
+                    title="View / Update Suite Occupancy & Intake Details"
+                    className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                  >
+                    <span>Suite & Intake</span>
+                  </button>
+                  <button
+                    onClick={() => openChecklist(row, 'checkout')}
+                    title="Departure Protocol & Check Out"
+                    className="flex items-center gap-1 px-2.5 py-1 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-bold shadow-sm transition-colors cursor-pointer"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>Check Out</span>
+                  </button>
+                </>
+              )}
+
+              {/* Step 3: CHECKED_OUT - Option to Re-Check In */}
+              {row.status === 'CHECKED_OUT' && (
+                <button
+                  onClick={() => openChecklist(row, 'checkin')}
+                  title="Re-check in this pet (stay remains permanently saved in records)"
+                  className="flex items-center gap-1 px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 rounded-lg text-xs font-bold shadow-xs transition-colors cursor-pointer"
+                >
+                  <LogIn className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Check In</span>
+                </button>
+              )}
             </div>
           )}
 
-          {!isAdmin && (
+          {(isStaff || isAdmin) && (
             <button
               onClick={() => {
                 setEditingBooking(row);
@@ -322,7 +403,7 @@ export const BoardingList = () => {
             </button>
           )}
 
-          {!isAdmin && (
+          {(isStaff || isAdmin) && (
             <button
               onClick={() => handleDeleteBooking(row.id, row.booking_id)}
               title="Cancel / Delete Stay"
@@ -339,30 +420,51 @@ export const BoardingList = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-            <Home className="w-6 h-6 text-brand-600" />
-            <span>Pet Boarding & Kennels</span>
-          </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Manage kennels, room availability, digital check-in protocols, and daily care logs
-          </p>
-        </div>
+      {!isEmbedded ? (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+              <Home className="w-6 h-6 text-brand-600" />
+              <span>Pet Boarding & Kennels</span>
+            </h1>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Manage kennels, room availability, digital check-in protocols, and daily care logs
+            </p>
+          </div>
 
-        {!isAdmin && (
           <button
             onClick={() => {
               setEditingBooking(null);
               setIsBookingModalOpen(true);
             }}
-            className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-sm transition-colors"
+            className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-sm transition-colors cursor-pointer"
           >
             <Plus className="w-4 h-4" />
-            <span>New Boarding Stay</span>
+            <span>Book a Boarding Stay</span>
           </button>
-        )}
-      </div>
+        </div>
+      ) : (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-1 border-b border-slate-100">
+          <div>
+            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <Home className="w-5 h-5 text-brand-600" />
+              <span>Boarding Stays & Kennel Reservations</span>
+            </h2>
+            <p className="text-xs text-slate-500">Live room occupancy, scheduled pet stays, and check-in protocols</p>
+          </div>
+
+          <button
+            onClick={() => {
+              setEditingBooking(null);
+              setIsBookingModalOpen(true);
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-sm transition-colors cursor-pointer shrink-0"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Book a Boarding Stay</span>
+          </button>
+        </div>
+      )}
 
       {/* Kennel / Room Status Overview Board */}
       <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
@@ -376,26 +478,46 @@ export const BoardingList = () => {
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" /> Available
             </span>
             <span className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-500" /> Reserved
+            </span>
+            <span className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-indigo-500" /> Occupied
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-amber-500" /> Cleaning / Maint.
+              <span className="w-2.5 h-2.5 rounded-full bg-slate-400" /> Cleaning / Maint.
             </span>
           </div>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
           {rooms.map((room) => {
-            const isOccupied = room.status === 'OCCUPIED';
+            const activeBooking = bookings.find(
+              (b) => (b.room === room.id || b.room_number === room.room_number) && b.status === 'CHECKED_IN'
+            );
+            const reservedBooking = bookings.find(
+              (b) => (b.room === room.id || b.room_number === room.room_number) && b.status === 'RESERVED'
+            );
+            const matchedBooking = activeBooking || reservedBooking;
+            const bookingId = matchedBooking?.booking_id || room.current_booking_id;
+            const petName = matchedBooking?.pet_name || room.current_guest_name;
+
+            const isOccupied = room.status === 'OCCUPIED' || !!activeBooking;
+            const isReserved = !isOccupied && (room.effective_status === 'RESERVED' || !!reservedBooking);
             const isMaintenance = room.status === 'MAINTENANCE';
+
             return (
               <div
                 key={room.id}
+                onClick={() => matchedBooking && setViewingBooking(matchedBooking)}
                 className={`p-3 rounded-xl border text-center transition-all ${
+                  matchedBooking ? 'cursor-pointer hover:shadow-md hover:-translate-y-0.5' : ''
+                } ${
                   isOccupied
-                    ? 'bg-indigo-50/70 border-indigo-200 text-indigo-900'
+                    ? 'bg-indigo-50/80 border-indigo-200 text-indigo-900 shadow-xs'
+                    : isReserved
+                    ? 'bg-amber-50/80 border-amber-200 text-amber-900 shadow-xs'
                     : isMaintenance
-                    ? 'bg-amber-50/70 border-amber-200 text-amber-900'
+                    ? 'bg-slate-50 border-slate-200 text-slate-700'
                     : 'bg-emerald-50/60 border-emerald-200 text-emerald-900'
                 }`}
               >
@@ -406,14 +528,33 @@ export const BoardingList = () => {
                 <span
                   className={`inline-block mt-1 text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
                     isOccupied
-                      ? 'bg-indigo-200/60 text-indigo-800'
+                      ? 'bg-indigo-200/70 text-indigo-800'
+                      : isReserved
+                      ? 'bg-amber-200/70 text-amber-800'
                       : isMaintenance
-                      ? 'bg-amber-200/60 text-amber-800'
+                      ? 'bg-slate-200 text-slate-700'
                       : 'bg-emerald-200/60 text-emerald-800'
                   }`}
                 >
-                  {room.status}
+                  {isOccupied ? 'Occupied' : isReserved ? 'Reserved' : isMaintenance ? 'Maint.' : 'Available'}
                 </span>
+
+                {bookingId ? (
+                  <div className="mt-1.5 pt-1.5 border-t border-black/5 space-y-0.5">
+                    <div className="font-mono text-[10px] font-black tracking-tight text-slate-900">
+                      {bookingId}
+                    </div>
+                    <div className="text-[10px] font-bold truncate text-slate-700" title={petName}>
+                      🐾 {petName}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-1.5 pt-1.5 border-t border-black/5">
+                    <span className="text-[10px] font-medium text-slate-400">
+                      {isMaintenance ? 'Unavailable' : 'Vacant'}
+                    </span>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -538,7 +679,7 @@ export const BoardingList = () => {
         >
           <div className="space-y-5">
             {/* New Care Log Form */}
-            {!isAdmin && isStaff && (
+            {(isStaff || isAdmin) && (
               <form onSubmit={handleAddCareLog} className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
                 <p className="text-xs font-bold text-slate-800 uppercase tracking-wider">
                   Log New Care Activity
@@ -659,14 +800,18 @@ export const BoardingList = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="p-3.5 bg-white rounded-xl border border-slate-200 space-y-1">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Check-In Date</p>
-                <p className="font-bold text-slate-900">{viewingBooking.check_in_date}</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Check-In</p>
+                <p className="font-bold text-slate-900">
+                  {viewingBooking.check_in_date} {viewingBooking.check_in_time ? `@ ${viewingBooking.check_in_time.slice(0, 5)}` : ''}
+                </p>
                 <p className="text-[11px] text-slate-400">{viewingBooking.actual_check_in_time ? `Checked in: ${viewingBooking.actual_check_in_time}` : 'Pending Check-In'}</p>
               </div>
 
               <div className="p-3.5 bg-white rounded-xl border border-slate-200 space-y-1">
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Expected Check-Out</p>
-                <p className="font-bold text-slate-900">{viewingBooking.expected_check_out_date}</p>
+                <p className="font-bold text-slate-900">
+                  {viewingBooking.expected_check_out_date} {viewingBooking.check_out_time ? `@ ${viewingBooking.check_out_time.slice(0, 5)}` : ''}
+                </p>
                 <p className="text-[11px] text-slate-400">{viewingBooking.actual_check_out_time ? `Checked out: ${viewingBooking.actual_check_out_time}` : 'Active Stay'}</p>
               </div>
             </div>
@@ -677,6 +822,71 @@ export const BoardingList = () => {
                 <p className="text-slate-700">{viewingBooking.special_instructions}</p>
               </div>
             )}
+
+            {/* Daily Stay Photo (Customer and Staff) */}
+            <div className="p-4 bg-slate-50/80 rounded-xl border border-slate-200 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+                  <Camera className="w-4 h-4 text-brand-600" />
+                  <span>Daily Stay Photo (Shared with Pet Owner)</span>
+                </div>
+                {viewingBooking.stay_photo_updated_at && (
+                  <span className="text-[10px] text-slate-400">
+                    Updated {new Date(viewingBooking.stay_photo_updated_at).toLocaleDateString()}
+                  </span>
+                )}
+              </div>
+
+              {viewingBooking.stay_photo ? (
+                <div className="space-y-2.5">
+                  <div className="rounded-xl overflow-hidden bg-slate-950 aspect-video max-h-60 border border-slate-200 shadow-xs">
+                    <img
+                      src={viewingBooking.stay_photo}
+                      alt={`Stay photo of ${viewingBooking.pet_name}`}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  {(isStaff || isAdmin) && (
+                    <div className="flex items-center justify-between pt-1">
+                      <span className="text-[11px] text-emerald-700 font-semibold flex items-center gap-1">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>Visible to pet parent</span>
+                      </span>
+                      <label className="cursor-pointer px-3 py-1 bg-white hover:bg-brand-50 border border-slate-200 text-slate-700 hover:text-brand-700 rounded-lg text-xs font-bold transition-colors inline-flex items-center gap-1.5 shadow-xs">
+                        <Camera className="w-3.5 h-3.5 text-brand-600" />
+                        <span>{uploadingStayPhoto ? 'Uploading...' : 'Change Photo'}</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          disabled={uploadingStayPhoto}
+                          onChange={(e) => handleModalPhotoUpload(e.target.files?.[0])}
+                        />
+                      </label>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="p-4 rounded-xl border-2 border-dashed border-slate-200 text-center space-y-2 bg-white">
+                  <p className="text-xs text-slate-500">
+                    No daily stay photo uploaded yet for this boarding reservation.
+                  </p>
+                  {(isStaff || isAdmin) && (
+                    <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-bold transition-colors shadow-xs">
+                      <UploadCloud className="w-4 h-4" />
+                      <span>{uploadingStayPhoto ? 'Uploading...' : 'Upload Stay Photo'}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        disabled={uploadingStayPhoto}
+                        onChange={(e) => handleModalPhotoUpload(e.target.files?.[0])}
+                      />
+                    </label>
+                  )}
+                </div>
+              )}
+            </div>
 
             <div className="flex items-center justify-between pt-2">
               <button

@@ -1,7 +1,19 @@
 from rest_framework import serializers
 from .models import Appointment
+from customers.models import Customer
+from users.models import User
 
 class AppointmentSerializer(serializers.ModelSerializer):
+    customer = serializers.PrimaryKeyRelatedField(
+        queryset=Customer.objects.all(),
+        required=False,
+        allow_null=True
+    )
+    staff = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.all(),
+        required=False,
+        allow_null=True
+    )
     customer_name = serializers.ReadOnlyField(source='customer.full_name')
     customer_phone = serializers.ReadOnlyField(source='customer.phone')
     pet_name = serializers.ReadOnlyField(source='pet.name')

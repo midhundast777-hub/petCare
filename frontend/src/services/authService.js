@@ -35,6 +35,28 @@ export const authService = {
     return response.data;
   },
 
+  uploadAvatar: async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post('/auth/upload-avatar/', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  uploadImage: async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post('/auth/upload-image/', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
   getUsers: async (params = {}) => {
     const response = await api.get('/auth/users/', { params });
     return response.data;

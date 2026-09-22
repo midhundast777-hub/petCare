@@ -62,7 +62,11 @@ export const Login = () => {
 
       navigate('/dashboard');
     } catch (err) {
-      addToast(err.response?.data?.detail || 'Invalid email/phone or password', 'error');
+      if (!err.response) {
+        addToast('Cannot connect to backend server. Please ensure the Django server is running at http://127.0.0.1:8000.', 'error');
+      } else {
+        addToast(err.response?.data?.detail || 'Invalid email/phone or password', 'error');
+      }
     } finally {
       setLoading(false);
     }

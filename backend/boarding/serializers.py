@@ -5,10 +5,45 @@ from pets.models import Pet
 
 class RoomSerializer(serializers.ModelSerializer):
     room_type_display = serializers.CharField(source='get_room_type_display', read_only=True)
+    current_booking_id = serializers.SerializerMethodField()
+    current_guest_name = serializers.SerializerMethodField()
+    current_booking_status = serializers.SerializerMethodField()
+    effective_status = serializers.SerializerMethodField()
 
     class Meta:
         model = Room
-        fields = ('id', 'room_number', 'room_type', 'room_type_display', 'daily_rate', 'capacity', 'status', 'notes')
+        fields = (
+            'id', 'room_number', 'room_type', 'room_type_display',
+            'daily_rate', 'capacity', 'status', 'notes',
+            'current_booking_id', 'current_guest_name', 'current_booking_status', 'effective_status'
+        )
+
+    def _get_active_or_reserved_booking(self, obj):
+        # Prefer checked-in active booking, then upcoming reserved booking
+        b = obj.bookings.filter(status=BoardingBooking.Status.CHECKED_IN).first()
+        if not b:
+            b = obj.bookings.filter(status=BoardingBooking.Status.RESERVED).first()
+        return b
+
+    def get_current_booking_id(self, obj):
+        b = self._get_active_or_reserved_booking(obj)
+        return b.booking_id if b else None
+
+    def get_current_guest_name(self, obj):
+        b = self._get_active_or_reserved_booking(obj)
+        return b.pet.name if b and b.pet else None
+
+    def get_current_booking_status(self, obj):
+        b = self._get_active_or_reserved_booking(obj)
+        return b.status if b else None
+
+    def get_effective_status(self, obj):
+        if obj.status == Room.Status.MAINTENANCE:
+            return 'MAINTENANCE'
+        b = self._get_active_or_reserved_booking(obj)
+        if b:
+            return b.status
+        return 'AVAILABLE'
 
 class DailyCareLogSerializer(serializers.ModelSerializer):
     staff_name = serializers.ReadOnlyField(source='staff.full_name')
@@ -36,6 +71,8 @@ class BoardingBookingSerializer(serializers.ModelSerializer):
     customer_phone = serializers.ReadOnlyField(source='customer.phone')
     pet_name = serializers.ReadOnlyField(source='pet.name')
     pet_species = serializers.ReadOnlyField(source='pet.species')
+    pet_breed = serializers.ReadOnlyField(source='pet.breed')
+    pet_photo = serializers.ReadOnlyField(source='pet.photo')
     room_number = serializers.ReadOnlyField(source='room.room_number')
     room_type = serializers.ReadOnlyField(source='room.room_type')
     status_display = serializers.CharField(source='get_status_display', read_only=True)
@@ -45,11 +82,11 @@ class BoardingBookingSerializer(serializers.ModelSerializer):
         model = BoardingBooking
         fields = (
             'id', 'booking_id', 'customer', 'customer_name', 'customer_phone',
-            'pet', 'pet_name', 'pet_species', 'room', 'room_number', 'room_type',
-            'package', 'check_in_date', 'expected_check_out_date', 'actual_check_out_date',
+            'pet', 'pet_name', 'pet_species', 'pet_breed', 'pet_photo', 'room', 'room_number', 'room_type',
+            'package', 'check_in_date', 'check_in_time', 'expected_check_out_date', 'check_out_time', 'actual_check_out_date',
             'feeding_instructions', 'medication_instructions', 'special_instructions',
-            'emergency_contact', 'status', 'status_display', 'total_cost', 'payment_status',
-            'checklist', 'created_at', 'updated_at'
+            'emergency_contact', 'status', 'status_display', 'stay_photo', 'stay_photo_updated_at',
+            'total_cost', 'payment_status', 'checklist', 'created_at', 'updated_at'
         )
         read_only_fields = ('id', 'booking_id', 'created_at', 'updated_at')
 

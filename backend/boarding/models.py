@@ -52,7 +52,9 @@ class BoardingBooking(models.Model):
     room = models.ForeignKey(Room, on_delete=models.SET_NULL, null=True, blank=True, related_name='bookings')
     package = models.CharField(max_length=20, choices=Package.choices, default=Package.STANDARD)
     check_in_date = models.DateField(db_index=True)
+    check_in_time = models.TimeField(null=True, blank=True, default='09:00')
     expected_check_out_date = models.DateField(db_index=True)
+    check_out_time = models.TimeField(null=True, blank=True, default='17:00')
     actual_check_out_date = models.DateField(null=True, blank=True)
     
     feeding_instructions = models.TextField(blank=True)
@@ -61,6 +63,8 @@ class BoardingBooking(models.Model):
     emergency_contact = models.CharField(max_length=150, blank=True)
 
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.RESERVED, db_index=True)
+    stay_photo = models.TextField(blank=True, default='', help_text="Latest live photo of pet during boarding stay")
+    stay_photo_updated_at = models.DateTimeField(null=True, blank=True)
     total_cost = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     payment_status = models.CharField(max_length=20, choices=PaymentStatus.choices, default=PaymentStatus.PENDING)
     created_at = models.DateTimeField(auto_now_add=True)

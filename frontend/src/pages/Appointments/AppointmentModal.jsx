@@ -34,25 +34,78 @@ export const AppointmentModal = ({ isOpen, onClose, appointment, onSaved }) => {
   });
 
   useEffect(() => {
-    // Fetch dropdown options
+    // Fetch dropdown options independently so one failure never blocks others
     const loadDropdowns = async () => {
+      // 1. Services: load active services (prioritizing 'Book Your Seat' as single option)
       try {
-        const [servData, staffData] = await Promise.all([
-          serviceService.getAll({ status: 'ACTIVE' }),
-          authService.getUsers({ role: 'STAFF' }),
-        ]);
-        setServices(Array.isArray(servData) ? servData : servData.results || []);
-        setStaffMembers(Array.isArray(staffData) ? staffData : staffData.results || []);
+        const servData = await serviceService.getAll({ status: 'ACTIVE' });
+        let servList = Array.isArray(servData) ? servData : servData.results || [];
+        if (servList.length === 0) {
+          const allServ = await serviceService.getAll();
+          servList = Array.isArray(allServ) ? allServ : allServ.results || [];
+        }
+        const seatOnly = servList.filter((s) => s.name.toLowerCase().includes('book your seat') || s.name.toLowerCase().includes('book youre seat'));
+        const finalServices = seatOnly.length > 0 ? seatOnly : servList;
+        setServices(finalServices);
 
-        if (!isCustomer) {
+        if (finalServices.length > 0) {
+          setFormData((prev) => ({
+            ...prev,
+            service: prev.service || String(finalServices[0].id),
+          }));
+        }
+      } catch (servErr) {
+        console.warn('Filtered services fetch failed, retrying all services:', servErr);
+        try {
+          const allServ = await serviceService.getAll();
+          const servList = Array.isArray(allServ) ? allServ : allServ.results || [];
+          const seatOnly = servList.filter((s) => s.name.toLowerCase().includes('book your seat') || s.name.toLowerCase().includes('book youre seat'));
+          const finalServices = seatOnly.length > 0 ? seatOnly : servList;
+          setServices(finalServices);
+          if (finalServices.length > 0) {
+            setFormData((prev) => ({
+              ...prev,
+              service: prev.service || String(finalServices[0].id),
+            }));
+          }
+        } catch (e) {
+          console.error('Failed to load services:', e);
+        }
+      }
+
+      // 2. Staff: only request if staff/admin (customers do not have permission for user list)
+      if (!isCustomer) {
+        try {
+          const staffData = await authService.getUsers({ role: 'STAFF' });
+          setStaffMembers(Array.isArray(staffData) ? staffData : staffData.results || []);
+        } catch (staffErr) {
+          console.warn('Could not load staff list (safe to ignore for non-admins):', staffErr);
+          setStaffMembers([]);
+        }
+      }
+
+      // 3. Customers: load if staff/admin
+      if (!isCustomer) {
+        try {
           const custData = await customerService.getAll();
           setCustomers(Array.isArray(custData) ? custData : custData.results || []);
-        } else {
+        } catch (custErr) {
+          console.error('Failed to load customers:', custErr);
+        }
+      }
+
+      // 4. Pets: always load registered pets
+      try {
+        if (isCustomer) {
           const myPets = await petService.getAll();
           setPets(Array.isArray(myPets) ? myPets : myPets.results || []);
+        } else {
+          // For staff/admin, load all registered pets
+          const allPets = await petService.getAll();
+          setPets(Array.isArray(allPets) ? allPets : allPets.results || []);
         }
-      } catch (err) {
-        console.error(err);
+      } catch (petErr) {
+        console.error('Failed to load pets:', petErr);
       }
     };
 
@@ -61,14 +114,34 @@ export const AppointmentModal = ({ isOpen, onClose, appointment, onSaved }) => {
     }
   }, [isOpen, isCustomer]);
 
-  // When customer is selected, load customer's pets
-  useEffect(() => {
-    if (formData.customer && !isCustomer) {
-      petService.getAll({ owner: formData.customer }).then((res) => {
-        setPets(Array.isArray(res) ? res : res.results || []);
-      }).catch(console.error);
-    }
-  }, [formData.customer, isCustomer]);
+  // When customer changes for admin/staff, update or filter pets
+  const handleCustomerChange = (e) => {
+    const selectedCustId = e.target.value;
+    setFormData((prev) => {
+      const currentPet = pets.find((p) => String(p.id) === String(prev.pet));
+      const shouldResetPet = selectedCustId && currentPet && String(currentPet.owner) !== String(selectedCustId);
+      return {
+        ...prev,
+        customer: selectedCustId,
+        pet: shouldResetPet ? '' : prev.pet,
+      };
+    });
+  };
+
+  const handlePetChange = (e) => {
+    const selectedPetId = e.target.value;
+    const selectedPet = pets.find((p) => String(p.id) === String(selectedPetId));
+    setFormData((prev) => ({
+      ...prev,
+      pet: selectedPetId,
+      customer: (!isCustomer && selectedPet?.owner && !prev.customer) ? selectedPet.owner : prev.customer,
+    }));
+  };
+
+  // Filter displayed pets: if staff selected a customer, show customer's pets; otherwise show all pets
+  const displayedPets = (!isCustomer && formData.customer)
+    ? pets.filter((p) => String(p.owner) === String(formData.customer))
+    : pets;
 
   // Check vaccination safety when pet is selected
   useEffect(() => {
@@ -118,17 +191,43 @@ export const AppointmentModal = ({ isOpen, onClose, appointment, onSaved }) => {
     e.preventDefault();
     setLoading(true);
     try {
+      const payload = { ...formData };
+      if (isCustomer) {
+        if (!payload.customer) {
+          const selectedPet = pets.find((p) => String(p.id) === String(payload.pet));
+          if (selectedPet?.owner) {
+            payload.customer = selectedPet.owner;
+          } else {
+            delete payload.customer;
+          }
+        }
+      }
+      if (!payload.staff) delete payload.staff;
+
       if (appointment?.id) {
-        await appointmentService.update(appointment.id, formData);
+        await appointmentService.update(appointment.id, payload);
         addToast('Appointment updated successfully!', 'success');
       } else {
-        await appointmentService.create(formData);
+        await appointmentService.create(payload);
         addToast('Appointment scheduled successfully!', 'success');
       }
       if (onSaved) onSaved();
       onClose();
     } catch (err) {
-      const msg = err.response?.data?.staff?.[0] || err.response?.data?.end_time?.[0] || 'Booking error. Please verify staff availability.';
+      const errorData = err.response?.data;
+      let msg = 'Booking error. Please check your inputs.';
+      if (typeof errorData === 'string') {
+        msg = errorData;
+      } else if (errorData?.detail) {
+        msg = errorData.detail;
+      } else if (errorData?.staff) {
+        msg = Array.isArray(errorData.staff) ? errorData.staff[0] : errorData.staff;
+      } else if (errorData?.end_time) {
+        msg = Array.isArray(errorData.end_time) ? errorData.end_time[0] : errorData.end_time;
+      } else if (errorData && typeof errorData === 'object') {
+        const firstKey = Object.keys(errorData)[0];
+        msg = `${firstKey}: ${errorData[firstKey]}`;
+      }
       addToast(msg, 'error');
     } finally {
       setLoading(false);
@@ -161,15 +260,14 @@ export const AppointmentModal = ({ isOpen, onClose, appointment, onSaved }) => {
               Customer / Pet Owner *
             </label>
             <select
-              required
               value={formData.customer}
-              onChange={(e) => setFormData({ ...formData, customer: e.target.value, pet: '' })}
+              onChange={handleCustomerChange}
               className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500/20"
             >
-              <option value="">Select Customer...</option>
+              <option value="">All Customers / Filter by Customer...</option>
               {customers.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.full_name} ({c.phone})
+                  {c.full_name} ({c.phone || c.email})
                 </option>
               ))}
             </select>
@@ -179,18 +277,20 @@ export const AppointmentModal = ({ isOpen, onClose, appointment, onSaved }) => {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
-              Pet Patient *
+              Pet *
             </label>
             <select
               required
               value={formData.pet}
-              onChange={(e) => setFormData({ ...formData, pet: e.target.value })}
+              onChange={handlePetChange}
               className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500/20"
             >
-              <option value="">Select Pet...</option>
-              {pets.map((p) => (
+              <option value="">
+                {displayedPets.length === 0 ? 'No pets registered yet' : 'Select Pet...'}
+              </option>
+              {displayedPets.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.name} ({p.species})
+                  {p.name} ({p.species}){p.owner_name && !isCustomer ? ` — Owner: ${p.owner_name}` : ''}
                 </option>
               ))}
             </select>
@@ -204,12 +304,17 @@ export const AppointmentModal = ({ isOpen, onClose, appointment, onSaved }) => {
               required
               value={formData.service}
               onChange={(e) => setFormData({ ...formData, service: e.target.value })}
-              className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500/20"
+              className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500/20 font-medium"
             >
-              <option value="">Select Service...</option>
+              {services.length === 0 && (
+                <option value="">No services available</option>
+              )}
+              {services.length > 1 && (
+                <option value="">Select Service...</option>
+              )}
               {services.map((s) => (
                 <option key={s.id} value={s.id}>
-                  {s.name} (${s.price})
+                  {s.name} (${parseFloat(s.price || 0).toFixed(2)})
                 </option>
               ))}
             </select>

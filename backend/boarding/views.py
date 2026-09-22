@@ -12,8 +12,21 @@ from users.models import User
 from notifications.models import Notification
 
 class RoomListCreateView(generics.ListCreateAPIView):
-    queryset = Room.objects.all()
     serializer_class = RoomSerializer
+
+    def get_queryset(self):
+        # Auto-sync room statuses with active CHECKED_IN bookings:
+        # A room is OCCUPIED if and only if an active CHECKED_IN booking currently occupies it.
+        # Maintenance rooms remain in MAINTENANCE.
+        occupied_room_ids = list(
+            BoardingBooking.objects.filter(
+                status=BoardingBooking.Status.CHECKED_IN,
+                room__isnull=False
+            ).values_list('room_id', flat=True)
+        )
+        Room.objects.filter(id__in=occupied_room_ids).exclude(status=Room.Status.MAINTENANCE).update(status=Room.Status.OCCUPIED)
+        Room.objects.exclude(id__in=occupied_room_ids).filter(status=Room.Status.OCCUPIED).update(status=Room.Status.AVAILABLE)
+        return Room.objects.all()
 
     def get_permissions(self):
         if self.request.method == 'POST':
@@ -240,7 +253,7 @@ class BoardingBookingDetailView(generics.RetrieveUpdateDestroyAPIView):
     def get_queryset(self):
         user = self.request.user
         if user.role == 'CUSTOMER' and not user.is_superuser:
-            return BoardingBooking.objects.filter(customer__user=user)
+            return BoardingBooking.objects.filter(Q(customer__user=user) | Q(customer__email__iexact=user.email))
         return BoardingBooking.objects.all()
 
     def perform_update(self, serializer):

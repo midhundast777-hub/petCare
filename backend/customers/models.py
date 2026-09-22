@@ -46,6 +46,8 @@ class Customer(models.Model):
                     num = (last_cust.id + 1000)
             else:
                 num = 1001
+            while Customer.objects.filter(customer_id=f"CUST-{num}").exists():
+                num += 1
             self.customer_id = f"CUST-{num}"
         super().save(*args, **kwargs)
 

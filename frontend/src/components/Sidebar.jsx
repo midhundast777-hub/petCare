@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink, Link } from 'react-router-dom';
+import { NavLink, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import {
   LayoutDashboard,
@@ -21,6 +21,7 @@ import {
 
 
 export const Sidebar = ({ isOpen, onClose }) => {
+  const location = useLocation();
   const { user, isAdmin, isStaff, isCustomer } = useAuth();
 
   // Navigation config based on roles
@@ -29,8 +30,7 @@ export const Sidebar = ({ isOpen, onClose }) => {
       return [
         { to: '/dashboard', label: 'My Dashboard', icon: LayoutDashboard },
         { to: '/pets', label: 'My Pets', icon: Dog },
-        { to: '/appointments', label: 'Bookings & Visits', icon: Calendar },
-        { to: '/boarding', label: 'Boarding Requests', icon: Home },
+        { to: '/bookings', label: 'Bookings & Boarding', icon: Calendar },
         { to: '/vaccinations', label: 'Vaccination History', icon: Syringe },
         { to: '/billing', label: 'Invoices & Payments', icon: Receipt },
       ];
@@ -39,13 +39,13 @@ export const Sidebar = ({ isOpen, onClose }) => {
     if (isStaff && !isAdmin) {
       return [
         { to: '/dashboard', label: 'Staff Dashboard', icon: LayoutDashboard },
-        { to: '/boarding', label: 'Boarding & Kennels', icon: Home },
-        { to: '/appointments', label: 'Appointments', icon: Calendar },
+        { to: '/bookings', label: 'Bookings & Boarding', icon: Calendar },
         { to: '/medical', label: 'Medical & Feeding', icon: Stethoscope },
         { to: '/pets', label: 'Pet Directory', icon: Dog },
         { to: '/customers', label: 'Customers', icon: Users },
         { to: '/vaccinations', label: 'Vaccinations', icon: Syringe },
         { to: '/billing', label: 'Invoices', icon: Receipt },
+        { to: '/staff', label: 'Staff Management', icon: UserCheck },
       ];
     }
 
@@ -54,8 +54,7 @@ export const Sidebar = ({ isOpen, onClose }) => {
       { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { to: '/customers', label: 'Customers', icon: Users },
       { to: '/pets', label: 'Pets', icon: Dog },
-      { to: '/appointments', label: 'Appointments', icon: Calendar },
-      { to: '/boarding', label: 'Boarding & Kennels', icon: Home },
+      { to: '/bookings', label: 'Bookings & Boarding', icon: Calendar },
       { to: '/vaccinations', label: 'Vaccinations', icon: Syringe },
       { to: '/medical', label: 'Medical & Daily Care', icon: Stethoscope },
       { to: '/services', label: 'Services Catalog', icon: Scissors },
@@ -117,13 +116,14 @@ export const Sidebar = ({ isOpen, onClose }) => {
                 onClick={() => {
                   if (window.innerWidth < 1024) onClose();
                 }}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-                    isActive
+                className={({ isActive }) => {
+                  const isEffectiveActive = isActive || (item.to === '/bookings' && (location.pathname.startsWith('/appointments') || location.pathname.startsWith('/boarding')));
+                  return `flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                    isEffectiveActive
                       ? 'bg-brand-600 text-white shadow-sm shadow-brand-500/20'
                       : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-                  }`
-                }
+                  }`;
+                }}
               >
                 <Icon className="w-4 h-4 shrink-0" />
                 <span>{item.label}</span>

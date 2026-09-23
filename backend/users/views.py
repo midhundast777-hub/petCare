@@ -69,8 +69,8 @@ class UserListView(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         user = self.request.user
-        if not (user.role in ['ADMIN', 'STAFF'] or user.is_superuser):
-            raise PermissionDenied("Only administrators and staff can create staff or user accounts.")
+        if not (user.role == User.Role.ADMIN or user.is_superuser):
+            raise PermissionDenied("Only administrators can create staff or user accounts.")
         serializer.save()
 
     def get_queryset(self):
@@ -105,17 +105,16 @@ class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def perform_update(self, serializer):
         user = self.request.user
-        target_user = self.get_object()
-        if target_user.role == User.Role.ADMIN and user.role != User.Role.ADMIN and not user.is_superuser:
-            raise PermissionDenied("Staff members cannot modify an administrator account.")
+        if not (user.role == User.Role.ADMIN or user.is_superuser):
+            raise PermissionDenied("Only administrators can modify staff or user accounts.")
         serializer.save()
 
     def perform_destroy(self, instance):
         user = self.request.user
+        if not (user.role == User.Role.ADMIN or user.is_superuser):
+            raise PermissionDenied("Only administrators can delete staff accounts.")
         if instance == user:
             raise PermissionDenied("You cannot delete your own account.")
-        if instance.role == User.Role.ADMIN and user.role != User.Role.ADMIN and not user.is_superuser:
-            raise PermissionDenied("Staff members cannot delete an administrator account.")
         instance.delete()
 
 class UploadAvatarView(APIView):

@@ -47,6 +47,29 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
+// Admin Only Route Wrapper
+const AdminRoute = ({ children }) => {
+  const { user, isAdmin, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <LoadingSpinner size="lg" text="Authenticating session..." />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (!isAdmin) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return children;
+};
+
 export function App() {
   return (
     <BrowserRouter>
@@ -101,8 +124,15 @@ export function App() {
               {/* Reports */}
               <Route path="/reports" element={<ReportsPage />} />
 
-              {/* Staff Management (Admin) */}
-              <Route path="/staff" element={<StaffList />} />
+              {/* Staff Management (Admin Only) */}
+              <Route
+                path="/staff"
+                element={
+                  <AdminRoute>
+                    <StaffList />
+                  </AdminRoute>
+                }
+              />
 
               {/* Profile */}
               <Route path="/profile" element={<Profile />} />

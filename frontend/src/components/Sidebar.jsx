@@ -45,7 +45,6 @@ export const Sidebar = ({ isOpen, onClose }) => {
         { to: '/customers', label: 'Customers', icon: Users },
         { to: '/vaccinations', label: 'Vaccinations', icon: Syringe },
         { to: '/billing', label: 'Invoices', icon: Receipt },
-        { to: '/staff', label: 'Staff Management', icon: UserCheck },
       ];
     }
 

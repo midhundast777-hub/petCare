@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Navigate } from 'react-router-dom';
 import { authService } from '../../services/authService';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../context/ToastContext';
@@ -14,6 +15,10 @@ export const StaffList = () => {
   const [roleFilter, setRoleFilter] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState(null);
+
+  if (!isAdmin) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -32,10 +37,10 @@ export const StaffList = () => {
   };
 
   useEffect(() => {
-    if (isStaff) {
+    if (isAdmin) {
       fetchUsers();
     }
-  }, [roleFilter, isStaff]);
+  }, [roleFilter, isAdmin]);
 
   const handleDelete = async (id, name) => {
     if (id === currentUser?.id) {

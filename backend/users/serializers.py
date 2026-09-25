@@ -1,21 +1,61 @@
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from .models import User
+from django.core.validators import validate_email as django_validate_email
+from django.utils import timezone
+from datetime import timedelta
+from .models import User, VerificationCode
+
+def validate_10_digit_phone(value):
+    if not value:
+        return value
+    digits = ''.join(c for c in str(value) if c.isdigit())
+    if len(digits) != 10:
+        raise serializers.ValidationError(
+            f"Phone number must contain exactly 10 digits (currently {len(digits)} digits)."
+        )
+    return digits
 
 class UserSerializer(serializers.ModelSerializer):
     full_name = serializers.ReadOnlyField()
 
     class Meta:
         model = User
-        fields = ('id', 'email', 'first_name', 'last_name', 'full_name', 'role', 'phone', 'avatar', 'created_at')
+        fields = (
+            'id', 'email', 'first_name', 'last_name', 'full_name', 'role',
+            'phone', 'avatar', 'is_email_verified', 'is_phone_verified', 'created_at'
+        )
         read_only_fields = ('id', 'created_at')
+
+    def validate_phone(self, value):
+        return validate_10_digit_phone(value)
 
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True, min_length=6)
 
     class Meta:
         model = User
-        fields = ('id', 'email', 'password', 'first_name', 'last_name', 'role', 'phone')
+        fields = ('id', 'email', 'password', 'first_name', 'last_name', 'role', 'phone', 'is_email_verified', 'is_phone_verified')
+
+    def validate_email(self, value):
+        if not value:
+            raise serializers.ValidationError("Email address is required.")
+        norm = value.strip().lower()
+        try:
+            django_validate_email(norm)
+        except Exception:
+            raise serializers.ValidationError("Please enter a valid email address.")
+        if User.objects.filter(email__iexact=norm).exists():
+            existing = User.objects.filter(email__iexact=norm).first()
+            if existing and not existing.is_email_verified:
+                raise serializers.ValidationError(
+                    "An account with this email already exists but is not yet verified. Please check your email or request a new verification email."
+                )
+            raise serializers.ValidationError("An account with this email already exists. Please log in.")
+
+        return norm
+
+    def validate_phone(self, value):
+        return validate_10_digit_phone(value)
 
     def create(self, validated_data):
         from customers.models import Customer
@@ -26,8 +66,11 @@ class RegisterSerializer(serializers.ModelSerializer):
             first_name=validated_data.get('first_name', ''),
             last_name=validated_data.get('last_name', ''),
             role=role,
-            phone=validated_data.get('phone', '')
+            phone=validated_data.get('phone', ''),
+            is_email_verified=False,
+            is_phone_verified=validated_data.get('is_phone_verified', True)
         )
+
         if role == User.Role.CUSTOMER:
             existing_cust = Customer.objects.filter(email__iexact=user.email).first()
             if existing_cust:
@@ -49,10 +92,14 @@ class AdminCreateUserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ('id', 'email', 'password', 'first_name', 'last_name', 'role', 'phone', 'avatar')
+        fields = ('id', 'email', 'password', 'first_name', 'last_name', 'role', 'phone', 'avatar', 'is_email_verified', 'is_phone_verified')
 
     def validate_email(self, value):
         norm = value.strip().lower()
+        try:
+            django_validate_email(norm)
+        except Exception:
+            raise serializers.ValidationError("Please enter a valid email address.")
         instance = getattr(self, 'instance', None)
         qs = User.objects.filter(email__iexact=norm)
         if instance:
@@ -60,6 +107,9 @@ class AdminCreateUserSerializer(serializers.ModelSerializer):
         if qs.exists():
             raise serializers.ValidationError("A user with this email address already exists.")
         return norm
+
+    def validate_phone(self, value):
+        return validate_10_digit_phone(value)
 
     def create(self, validated_data):
         password = validated_data.get('password')

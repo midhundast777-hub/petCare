@@ -11,6 +11,33 @@ export const authService = {
     return response.data;
   },
 
+  checkLoginStatus: async (sessionToken) => {
+    const response = await api.get('/auth/login-status/', {
+      params: { session_token: sessionToken }
+    });
+    if (response.data.status === 'APPROVED' && response.data.access) {
+      localStorage.setItem('access_token', response.data.access);
+      localStorage.setItem('refresh_token', response.data.refresh);
+      localStorage.setItem('user_info', JSON.stringify(response.data.user));
+    }
+    return response.data;
+  },
+
+  approveLogin: async (token) => {
+    const response = await api.post('/auth/approve-login/', { token });
+    if (response.data.access) {
+      localStorage.setItem('access_token', response.data.access);
+      localStorage.setItem('refresh_token', response.data.refresh);
+      localStorage.setItem('user_info', JSON.stringify(response.data.user));
+    }
+    return response.data;
+  },
+
+  resendLoginEmail: async (sessionToken) => {
+    const response = await api.post('/auth/resend-login-email/', { session_token: sessionToken });
+    return response.data;
+  },
+
   checkUserExists: async (email, phone) => {
     try {
       const response = await api.get('/auth/check-user/', { params: { email, phone } });
@@ -20,8 +47,30 @@ export const authService = {
     }
   },
 
+  sendVerificationCode: async (type, destination) => {
+    const response = await api.post('/auth/send-verification/', { type, destination });
+    return response.data;
+  },
+
+  verifyCode: async (type, destination, code) => {
+    const response = await api.post('/auth/verify-code/', { type, destination, code });
+    return response.data;
+  },
+
   register: async (userData) => {
     const response = await api.post('/auth/register/', userData);
+    return response.data;
+  },
+
+  resendEmailVerification: async (email) => {
+    const response = await api.post('/auth/resend-verification/', { email });
+    return response.data;
+  },
+
+  verifyEmailToken: async (token) => {
+    const response = await api.get('/auth/verify-email/', {
+      params: { token, format: 'json' }
+    });
     return response.data;
   },
 

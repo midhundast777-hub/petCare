@@ -28,6 +28,12 @@ class PetListCreateView(generics.ListCreateAPIView):
         if owner_id:
             queryset = queryset.filter(owner_id=owner_id)
 
+        has_services = self.request.query_params.get('has_services')
+        if has_services and has_services.lower() == 'true':
+            queryset = queryset.filter(
+                Q(appointments__isnull=False) | Q(boarding_bookings__isnull=False) | Q(invoices__isnull=False)
+            ).distinct()
+
         search = self.request.query_params.get('search')
         if search:
             queryset = queryset.filter(

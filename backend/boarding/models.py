@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from django.utils import timezone
 from customers.models import Customer
 from pets.models import Pet
 
@@ -131,23 +132,54 @@ class BoardingChecklist(models.Model):
         return f"Checklist for {self.booking.booking_id}"
 
 class DailyCareLog(models.Model):
+    class Stage(models.TextChoices):
+        ARRIVAL = 'ARRIVAL', 'Arrival & Intake (When Pet Came)'
+        DAILY = 'DAILY', 'Daily Stay Activity'
+        DEPARTURE = 'DEPARTURE', 'Departure & Farewell (When Pet Leaves)'
+
     class CareType(models.TextChoices):
-        FEEDING = 'FEEDING', 'Feeding'
+        ARRIVAL = 'ARRIVAL', 'Arrival & Intake'
+        DEPARTURE = 'DEPARTURE', 'Departure & Check-Out'
+        FEEDING = 'FEEDING', 'Feeding & Treats'
         MEDICATION = 'MEDICATION', 'Medication Administered'
-        EXERCISE = 'EXERCISE', 'Exercise / Playtime'
-        GROOMING = 'GROOMING', 'Grooming / Brushing'
+        EXERCISE = 'EXERCISE', 'Exercise & Playtime'
+        WALK = 'WALK', 'Outdoor Walk & Stroll'
+        GROOMING = 'GROOMING', 'Grooming & Bathing'
+        NAP = 'NAP', 'Nap & Rest Time'
         POTTY = 'POTTY', 'Potty Break'
-        BEHAVIOR = 'BEHAVIOR', 'Behavior Observation'
-        HEALTH_CHECK = 'HEALTH_CHECK', 'Health Check'
+        BEHAVIOR = 'BEHAVIOR', 'Behavior & Mood Check'
+        HEALTH_CHECK = 'HEALTH_CHECK', 'Health & Vital Check'
+        PHOTO = 'PHOTO', 'Photo Moment'
+
+    class Mood(models.TextChoices):
+        HAPPY = 'HAPPY', 'Happy & Wagging'
+        PLAYFUL = 'PLAYFUL', 'Playful & Energetic'
+        CALM = 'CALM', 'Calm & Relaxed'
+        AFFECTIONATE = 'AFFECTIONATE', 'Cuddly & Affectionate'
+        SHY = 'SHY', 'Shy / Needs Reassurance'
+        ANXIOUS = 'ANXIOUS', 'Anxious / Settling In'
+        SLEEPY = 'SLEEPY', 'Sleepy & Resting'
 
     booking = models.ForeignKey(BoardingBooking, on_delete=models.CASCADE, related_name='care_logs')
+    stage = models.CharField(max_length=20, choices=Stage.choices, default=Stage.DAILY, db_index=True)
     care_type = models.CharField(max_length=30, choices=CareType.choices, default=CareType.FEEDING)
+    activity_title = models.CharField(max_length=150, blank=True)
+    mood = models.CharField(max_length=20, choices=Mood.choices, default=Mood.HAPPY, blank=True)
     notes = models.TextField()
-    staff = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    photo = models.TextField(blank=True, default='', help_text="Activity photo (URL or base64)")
+    activity_time = models.DateTimeField(default=timezone.now)
+    weight = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    belongings_notes = models.TextField(blank=True, help_text="Belongings received at arrival or returned at departure")
+    health_notes = models.TextField(blank=True, help_text="Health, coat, or vital observations")
+    dietary_notes = models.TextField(blank=True, help_text="Food intake or appetite level")
+    staff = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='recorded_care_logs')
     logged_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['-logged_at']
+        ordering = ['activity_time', 'logged_at']
 
     def __str__(self):
-        return f"{self.care_type} for {self.booking.pet.name} at {self.logged_at.strftime('%Y-%m-%d %H:%M')}"
+        title = self.activity_title or self.get_care_type_display()
+        return f"[{self.stage}] {title} for {self.booking.pet.name} at {self.activity_time.strftime('%Y-%m-%d %H:%M')}"
+

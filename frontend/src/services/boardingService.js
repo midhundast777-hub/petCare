@@ -54,14 +54,29 @@ export const boardingService = {
     return response.data;
   },
 
-  // Daily Care Logs
-  getCareLogs: async (bookingId) => {
-    const response = await api.get(`/boarding/bookings/${bookingId}/care-logs/`);
+  // Daily Care Logs & Digital Diary
+  getCareLogs: async (bookingId, params = {}) => {
+    const response = await api.get(`/boarding/bookings/${bookingId}/care-logs/`, { params });
     return response.data;
   },
 
   addCareLog: async (bookingId, data) => {
     const response = await api.post(`/boarding/bookings/${bookingId}/care-logs/`, data);
+    return response.data;
+  },
+
+  updateCareLog: async (logId, data) => {
+    const response = await api.patch(`/boarding/care-logs/${logId}/`, data);
+    return response.data;
+  },
+
+  deleteCareLog: async (logId) => {
+    const response = await api.delete(`/boarding/care-logs/${logId}/`);
+    return response.data;
+  },
+
+  getPetDiary: async (petId, params = {}) => {
+    const response = await api.get(`/boarding/pets/${petId}/diary/`, { params });
     return response.data;
   }
 };

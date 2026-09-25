@@ -26,6 +26,11 @@ class CustomerListCreateView(generics.ListCreateAPIView):
         status = self.request.query_params.get('status')
         if status:
             queryset = queryset.filter(status=status.upper())
+        has_services = self.request.query_params.get('has_services')
+        if has_services and has_services.lower() == 'true':
+            queryset = queryset.filter(
+                Q(appointments__isnull=False) | Q(boarding_bookings__isnull=False) | Q(invoices__isnull=False)
+            ).distinct()
         return queryset
 
     def perform_create(self, serializer):

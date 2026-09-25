@@ -39,6 +39,41 @@ class CustomerSerializer(serializers.ModelSerializer):
             return sum(float(inv.total_amount) for inv in paid_invoices)
         return 0.0
 
+    def validate_email(self, value):
+        if not value:
+            raise serializers.ValidationError("Email address is required.")
+        norm = value.strip().lower()
+        from django.core.validators import validate_email as django_validate_email
+        try:
+            django_validate_email(norm)
+        except Exception:
+            raise serializers.ValidationError("Please enter a valid email address.")
+        return norm
+
+    def validate_phone(self, value):
+        if not value:
+            raise serializers.ValidationError("Phone number is required.")
+        digits = ''.join(c for c in str(value) if c.isdigit())
+        if len(digits) != 10:
+            raise serializers.ValidationError(f"Phone number must contain exactly 10 digits (currently {len(digits)} digits).")
+        return digits
+
+    def validate_alternate_phone(self, value):
+        if value:
+            digits = ''.join(c for c in str(value) if c.isdigit())
+            if len(digits) != 10:
+                raise serializers.ValidationError(f"Alternate phone must contain exactly 10 digits (currently {len(digits)} digits).")
+            return digits
+        return value
+
+    def validate_emergency_contact_phone(self, value):
+        if value:
+            digits = ''.join(c for c in str(value) if c.isdigit())
+            if len(digits) != 10:
+                raise serializers.ValidationError(f"Emergency contact phone must contain exactly 10 digits (currently {len(digits)} digits).")
+            return digits
+        return value
+
 class CustomerDetailSerializer(CustomerSerializer):
     timeline_notes = CustomerNoteSerializer(many=True, read_only=True)
     # pets, appointments, invoices will be added or fetched dynamically

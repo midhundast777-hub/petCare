@@ -3,6 +3,7 @@ import Modal from '../../components/Modal';
 import { authService } from '../../services/authService';
 import { useToast } from '../../context/ToastContext';
 import { Eye, EyeOff, Upload, Trash2, Loader2, User } from 'lucide-react';
+import { validatePhone, validateEmail, formatPhoneInput } from '../../utils/validation';
 
 export const StaffModal = ({ isOpen, onClose, staffMember, onSaved }) => {
   const { addToast } = useToast();
@@ -93,6 +94,21 @@ export const StaffModal = ({ isOpen, onClose, staffMember, onSaved }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    const emailVal = validateEmail(formData.email);
+    if (!emailVal.valid) {
+      addToast(emailVal.message, 'error');
+      return;
+    }
+
+    if (formData.phone && formData.phone.trim()) {
+      const phoneVal = validatePhone(formData.phone);
+      if (!phoneVal.valid) {
+        addToast(phoneVal.message, 'error');
+        return;
+      }
+    }
+
     setLoading(true);
 
     const payload = {
@@ -267,15 +283,31 @@ export const StaffModal = ({ isOpen, onClose, staffMember, onSaved }) => {
           </div>
 
           <div>
-            <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
-              Phone Number
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-bold uppercase text-slate-700">
+                Phone Number
+              </label>
+              {formData.phone && (
+                <span className={`text-[11px] font-mono font-bold ${
+                  formData.phone.replace(/\D/g, '').length === 10
+                    ? 'text-emerald-600'
+                    : 'text-slate-400'
+                }`}>
+                  {formData.phone.replace(/\D/g, '').length}/10 digits
+                </span>
+              )}
+            </div>
             <input
               type="tel"
+              maxLength={14}
+              placeholder="e.g. 9876543210 (10 digits)"
               value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              placeholder="+1 (555) 019-3344"
-              className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500/20"
+              onChange={(e) => setFormData({ ...formData, phone: formatPhoneInput(e.target.value) })}
+              className={`w-full px-3.5 py-2 bg-slate-50 border rounded-xl text-sm focus:ring-2 ${
+                formData.phone && formData.phone.replace(/\D/g, '').length === 10
+                  ? 'border-emerald-300 focus:border-emerald-500 focus:ring-emerald-500/20'
+                  : 'border-slate-200 focus:ring-brand-500/20'
+              }`}
             />
           </div>
         </div>

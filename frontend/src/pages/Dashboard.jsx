@@ -27,8 +27,12 @@ import {
   Heart,
   Phone,
   ArrowRight,
-  ShieldCheck
+  ShieldCheck,
+  Search,
+  Mail,
+  BookOpen
 } from 'lucide-react';
+import DigitalDiaryModal from '../components/DigitalDiaryModal';
 import { Link } from 'react-router-dom';
 import {
   AreaChart,
@@ -50,8 +54,13 @@ export const Dashboard = () => {
   const [uploadingBookingId, setUploadingBookingId] = useState(null);
   const [boardingFilter, setBoardingFilter] = useState('ALL'); // 'ALL' | 'CHECKED_IN' | 'RESERVED'
   const [selectedPhotoModal, setSelectedPhotoModal] = useState(null);
+  const [adminTab, setAdminTab] = useState('SERVICES'); // 'SERVICES' | 'BOARDING'
+  const [serviceClientSearch, setServiceClientSearch] = useState('');
+  const [selectedDiaryBooking, setSelectedDiaryBooking] = useState(null);
+  const [isDiaryModalOpen, setIsDiaryModalOpen] = useState(false);
 
   const fileInputRefs = useRef({});
+
 
   const fetchDashboardData = async () => {
     try {
@@ -333,9 +342,28 @@ export const Dashboard = () => {
                           </p>
                         </div>
                       )}
+
+                      {/* Customer Digital Diary Trigger */}
+                      <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
+                        <span className="text-[11px] text-slate-500 font-medium">
+                          Intake activity, daily photos & departure
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedDiaryBooking(stay);
+                            setIsDiaryModalOpen(true);
+                          }}
+                          className="px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-xs font-bold transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
+                        >
+                          <BookOpen className="w-3.5 h-3.5 text-amber-600" />
+                          <span>Open Digital Diary</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );
+
               })}
             </div>
           </div>
@@ -415,6 +443,20 @@ export const Dashboard = () => {
     return true; // 'ALL'
   });
 
+  const serviceClients = summary?.service_clients || [];
+  const filteredServiceClients = serviceClients.filter((c) => {
+    if (!serviceClientSearch) return true;
+    const lower = serviceClientSearch.toLowerCase();
+    return (
+      c.name?.toLowerCase().includes(lower) ||
+      c.email?.toLowerCase().includes(lower) ||
+      c.phone?.toLowerCase().includes(lower) ||
+      c.customer_id?.toLowerCase().includes(lower) ||
+      c.latest_service?.toLowerCase().includes(lower) ||
+      c.pets?.some((p) => p.toLowerCase().includes(lower))
+    );
+  });
+
   return (
     <div className="space-y-6">
       {/* Top Welcome & Clean Quick Actions */}
@@ -425,7 +467,7 @@ export const Dashboard = () => {
             <Sparkles className="w-5 h-5 text-amber-500" />
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Overview of active boarding guests, daily stay photos, appointments & revenue
+            Overview of clients receiving pet services, active boarding guests, appointments & revenue
           </p>
         </div>
 
@@ -472,9 +514,9 @@ export const Dashboard = () => {
           color="blue"
         />
         <StatCard
-          title="Total Pets & Clients"
-          value={`${summary?.total_pets || 0} Pets`}
-          subtitle={`${summary?.total_customers || 0} registered pet parents`}
+          title="Active Service Clients & Pets"
+          value={`${summary?.total_pets || 0} Serviced Pets`}
+          subtitle={`${summary?.total_customers || 0} clients receiving services`}
           icon={Dog}
           color="amber"
         />
@@ -487,203 +529,401 @@ export const Dashboard = () => {
         />
       </div>
 
-      {/* ⭐ HERO SECTION: LIVE BOARDING GUESTS & STAY PHOTO UPLOADING */}
+      {/* ⭐ HERO SECTION: SERVICE CLIENTS OR BOARDING GUESTS */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        {/* Section Header with Filters */}
-        <div className="p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-slate-50/60">
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
-                <Camera className="w-5 h-5 text-brand-600" />
-                <span>Live Boarding Guests & Daily Stay Photos</span>
-              </h2>
-              <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-brand-100 text-brand-800">
-                {filteredBoardingStays.length} active
+        {/* Main Tab Switcher Header */}
+        <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50/70">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setAdminTab('SERVICES')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-xs ${
+                adminTab === 'SERVICES'
+                  ? 'bg-brand-600 text-white shadow-brand-500/20 shadow-md'
+                  : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              <Users className="w-4 h-4" />
+              <span>Clients Receiving Pet Services</span>
+              <span
+                className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                  adminTab === 'SERVICES' ? 'bg-brand-700/80 text-white' : 'bg-slate-100 text-slate-700'
+                }`}
+              >
+                {serviceClients.length}
               </span>
-            </div>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Upload daily photos for each boarding pet. Uploaded photos are instantly visible to the pet parent on their customer dashboard!
-            </p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setAdminTab('BOARDING')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-xs ${
+                adminTab === 'BOARDING'
+                  ? 'bg-brand-600 text-white shadow-brand-500/20 shadow-md'
+                  : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              <Camera className="w-4 h-4" />
+              <span>Live Boarding Guests & Stay Photos</span>
+              <span
+                className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                  adminTab === 'BOARDING' ? 'bg-brand-700/80 text-white' : 'bg-slate-100 text-slate-700'
+                }`}
+              >
+                {filteredBoardingStays.length}
+              </span>
+            </button>
           </div>
 
-          {/* Filter Pills */}
           <div className="flex items-center gap-2">
-            <div className="inline-flex p-1 bg-slate-200/70 rounded-xl text-xs font-bold text-slate-600">
-              <button
-                type="button"
-                onClick={() => setBoardingFilter('ALL')}
-                className={`px-3 py-1 rounded-lg transition-colors ${
-                  boardingFilter === 'ALL'
-                    ? 'bg-white text-slate-900 shadow-xs'
-                    : 'hover:text-slate-900'
-                }`}
-              >
-                All ({boardingStays.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setBoardingFilter('CHECKED_IN')}
-                className={`px-3 py-1 rounded-lg transition-colors ${
-                  boardingFilter === 'CHECKED_IN'
-                    ? 'bg-white text-indigo-800 shadow-xs'
-                    : 'hover:text-slate-900'
-                }`}
-              >
-                Checked In ({boardingStays.filter((b) => b.status === 'CHECKED_IN').length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setBoardingFilter('RESERVED')}
-                className={`px-3 py-1 rounded-lg transition-colors ${
-                  boardingFilter === 'RESERVED'
-                    ? 'bg-white text-amber-800 shadow-xs'
-                    : 'hover:text-slate-900'
-                }`}
-              >
-                Reserved ({boardingStays.filter((b) => b.status === 'RESERVED').length})
-              </button>
-            </div>
+            {adminTab === 'SERVICES' ? (
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                <input
+                  type="text"
+                  value={serviceClientSearch}
+                  onChange={(e) => setServiceClientSearch(e.target.value)}
+                  placeholder="Search service clients & pets..."
+                  className="w-full pl-9 pr-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                />
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <div className="inline-flex p-1 bg-slate-200/70 rounded-xl text-xs font-bold text-slate-600">
+                  <button
+                    type="button"
+                    onClick={() => setBoardingFilter('ALL')}
+                    className={`px-3 py-1 rounded-lg transition-colors ${
+                      boardingFilter === 'ALL'
+                        ? 'bg-white text-slate-900 shadow-xs'
+                        : 'hover:text-slate-900'
+                    }`}
+                  >
+                    All ({boardingStays.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBoardingFilter('CHECKED_IN')}
+                    className={`px-3 py-1 rounded-lg transition-colors ${
+                      boardingFilter === 'CHECKED_IN'
+                        ? 'bg-white text-indigo-800 shadow-xs'
+                        : 'hover:text-slate-900'
+                    }`}
+                  >
+                    Checked In ({boardingStays.filter((b) => b.status === 'CHECKED_IN').length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBoardingFilter('RESERVED')}
+                    className={`px-3 py-1 rounded-lg transition-colors ${
+                      boardingFilter === 'RESERVED'
+                        ? 'bg-white text-amber-800 shadow-xs'
+                        : 'hover:text-slate-900'
+                    }`}
+                  >
+                    Reserved ({boardingStays.filter((b) => b.status === 'RESERVED').length})
+                  </button>
+                </div>
 
-            <Link
-              to="/boarding"
-              className="px-3 py-1.5 bg-brand-50 hover:bg-brand-100 text-brand-700 rounded-xl text-xs font-bold transition-colors"
-            >
-              Manage Stays →
-            </Link>
+                <Link
+                  to="/boarding"
+                  className="px-3 py-1.5 bg-brand-50 hover:bg-brand-100 text-brand-700 rounded-xl text-xs font-bold transition-colors"
+                >
+                  Manage Stays →
+                </Link>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Boarding Guests Photo Cards Grid */}
-        <div className="p-5">
-          {filteredBoardingStays.length === 0 ? (
-            <div className="py-12 text-center space-y-3">
-              <div className="w-14 h-14 mx-auto rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center">
-                <Home className="w-7 h-7" />
+        {/* TAB 1: CLIENTS RECEIVING PET SERVICES */}
+        {adminTab === 'SERVICES' && (
+          <div className="p-5 space-y-4">
+            {/* Filter Guidance Banner */}
+            <div className="p-3.5 bg-brand-50/70 border border-brand-200/70 rounded-xl flex items-start gap-3 text-xs text-brand-900">
+              <ShieldCheck className="w-4 h-4 text-brand-600 shrink-0 mt-0.5" />
+              <div>
+                <strong>Active Service Clients Only:</strong> Only customers who have booked sanctuary services (veterinary appointments, boarding stays, or care packages) for their pets are displayed here. Accounts registered by visitors without active service bookings are excluded from the admin dashboard.
               </div>
-              <h3 className="text-sm font-bold text-slate-800">
-                No boarding guests found for this filter
-              </h3>
-              <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                No pets are currently in this status. You can book a new stay or check in arriving guests from the boarding hub.
-              </p>
-              <Link
-                to="/boarding"
-                className="inline-flex items-center gap-1.5 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-sm transition-colors"
-              >
-                <PlusCircle className="w-4 h-4" />
-                <span>Book / Check-In Boarding Stay</span>
-              </Link>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {filteredBoardingStays.map((booking) => {
-                const isUploading = uploadingBookingId === booking.id;
-                const hasPhoto = Boolean(booking.stay_photo);
 
-                return (
+            {filteredServiceClients.length === 0 ? (
+              <div className="py-12 text-center space-y-3">
+                <div className="w-14 h-14 mx-auto rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center">
+                  <Users className="w-7 h-7" />
+                </div>
+                <h3 className="text-sm font-bold text-slate-800">
+                  {serviceClientSearch ? 'No matching service clients found' : 'No clients receiving services yet'}
+                </h3>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                  Only pet owners who have booked sanctuary appointments or boarding stays are shown here.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredServiceClients.map((client) => (
                   <div
-                    key={booking.id}
-                    className="border border-slate-200/90 rounded-2xl overflow-hidden bg-white shadow-xs hover:shadow-md transition-all flex flex-col justify-between relative"
+                    key={client.id}
+                    className="p-4 bg-white border border-slate-200/90 rounded-2xl shadow-xs hover:shadow-md transition-all flex flex-col justify-between"
                   >
-                    {/* Pet & Stay Header */}
-                    <div className="p-4 border-b border-slate-100 bg-slate-50/50">
-                      <div className="flex items-start justify-between gap-2">
+                    <div>
+                      {/* Client Header */}
+                      <div className="flex items-start justify-between gap-3">
                         <div className="flex items-center gap-3">
-                          <div className="w-11 h-11 rounded-xl bg-brand-100 text-brand-700 font-black text-sm flex items-center justify-center shrink-0">
-                            {booking.pet_name?.charAt(0) || '🐾'}
+                          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-brand-400 text-white font-black text-xs flex items-center justify-center shrink-0 shadow-xs">
+                            {client.name?.charAt(0) || 'C'}
                           </div>
                           <div>
-                            <div className="flex items-center gap-2">
-                              <h3 className="text-sm font-black text-slate-900">
-                                {booking.pet_name}
-                              </h3>
-                              <span
-                                className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                                  booking.status === 'CHECKED_IN'
-                                    ? 'bg-indigo-100 text-indigo-800 border border-indigo-200'
-                                    : 'bg-amber-100 text-amber-800 border border-amber-200'
-                                }`}
-                              >
-                                {booking.status === 'CHECKED_IN' ? 'In Suite' : 'Reserved'}
-                              </span>
-                            </div>
-                            <p className="text-[11px] text-slate-500">
-                              {booking.pet_breed || booking.pet_species || 'Pet Guest'} •{' '}
-                              <strong className="text-brand-700">
-                                {booking.room_number ? `Suite ${booking.room_number}` : 'Standard Suite'}
-                              </strong>
-                            </p>
+                            <h4 className="text-sm font-extrabold text-slate-900">{client.name}</h4>
+                            <span className="text-[10px] font-mono font-semibold text-slate-400">
+                              {client.customer_id}
+                            </span>
                           </div>
+                        </div>
+
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-200">
+                          {client.total_services} Services
+                        </span>
+                      </div>
+
+                      {/* Contact Info */}
+                      <div className="mt-3 pt-2.5 border-t border-slate-100 space-y-1 text-xs text-slate-600">
+                        {client.phone && (
+                          <div className="flex items-center gap-1.5 text-[11px]">
+                            <Phone className="w-3.5 h-3.5 text-slate-400" />
+                            <span>{client.phone}</span>
+                          </div>
+                        )}
+                        {client.email && (
+                          <div className="flex items-center gap-1.5 text-[11px] truncate">
+                            <Mail className="w-3.5 h-3.5 text-slate-400" />
+                            <span className="truncate">{client.email}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Pets in Service */}
+                      <div className="mt-3">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                          Serviced Pets:
+                        </span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {client.pets && client.pets.length > 0 ? (
+                            client.pets.map((pName, pIdx) => (
+                              <span
+                                key={pIdx}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 text-slate-800 rounded-lg text-xs font-semibold"
+                              >
+                                <span>🐾</span>
+                                <span>{pName}</span>
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-xs text-slate-400 italic">Pet in care</span>
+                          )}
                         </div>
                       </div>
 
-                      {/* Client Info & Dates */}
-                      <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs">
-                        <div className="text-slate-600 truncate">
-                          <span className="font-semibold text-slate-800">{booking.customer_name}</span>
-                          {booking.customer_phone && (
-                            <span className="text-slate-400 block text-[10px]">{booking.customer_phone}</span>
+                      {/* Latest Service Taken */}
+                      <div className="mt-3 p-2.5 bg-slate-50 border border-slate-100 rounded-xl text-xs space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                            Latest Service:
+                          </span>
+                          {client.latest_date && (
+                            <span className="text-[10px] text-slate-500 font-medium">
+                              {client.latest_date}
+                            </span>
                           )}
                         </div>
-                        <div className="text-right text-[11px] text-slate-500 font-medium">
-                          <span>{booking.check_in_date}</span>
-                          <span className="text-slate-300 mx-1">→</span>
-                          <span>{booking.expected_check_out_date}</span>
-                        </div>
+                        <p className="font-bold text-slate-800 text-xs">
+                          {client.latest_service}
+                        </p>
                       </div>
                     </div>
 
-                    {/* PHOTO UPLOAD & PREVIEW AREA */}
-                    <div className="p-4 flex-1 flex flex-col justify-center">
-                      {hasPhoto ? (
-                        <div className="space-y-2.5">
-                          {/* Image Thumbnail with Overlay */}
-                          <div
-                            className="relative group rounded-xl overflow-hidden bg-slate-950 aspect-video cursor-pointer border border-slate-200 shadow-xs"
-                            onClick={() =>
-                              setSelectedPhotoModal({
-                                isOpen: true,
-                                photoUrl: booking.stay_photo,
-                                petName: booking.pet_name,
-                                roomNumber: booking.room_number,
-                                date: booking.stay_photo_updated_at,
-                              })
-                            }
-                          >
-                            <img
-                              src={booking.stay_photo}
-                              alt={`Stay photo of ${booking.pet_name}`}
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                            />
-                            {/* Overlay Badge */}
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-90 group-hover:opacity-100 transition-opacity flex items-end justify-between p-2.5 text-white">
-                              <span className="px-2 py-0.5 rounded-md bg-emerald-500/90 text-[10px] font-black uppercase tracking-wider flex items-center gap-1 shadow-xs">
-                                <Eye className="w-3 h-3" />
-                                <span>Visible to Owner</span>
-                              </span>
-                              <span className="p-1 rounded-md bg-white/20 hover:bg-white/40 text-white transition-colors">
-                                <Maximize2 className="w-3.5 h-3.5" />
-                              </span>
-                            </div>
+                    {/* Quick Link Footer */}
+                    <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+                      <Link
+                        to="/appointments"
+                        className="text-xs font-bold text-brand-600 hover:text-brand-700 flex items-center gap-1"
+                      >
+                        <span>View Bookings</span>
+                        <ArrowRight className="w-3 h-3" />
+                      </Link>
+                      <Link
+                        to="/boarding"
+                        className="text-xs font-semibold text-slate-500 hover:text-slate-800"
+                      >
+                        Boarding Hub →
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
-                            {isUploading && (
-                              <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-xs flex items-center justify-center">
-                                <LoadingSpinner size="sm" text="Uploading photo..." />
+        {/* TAB 2: LIVE BOARDING GUESTS & STAY PHOTOS */}
+        {adminTab === 'BOARDING' && (
+          <div className="p-5">
+            {filteredBoardingStays.length === 0 ? (
+              <div className="py-12 text-center space-y-3">
+                <div className="w-14 h-14 mx-auto rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center">
+                  <Home className="w-7 h-7" />
+                </div>
+                <h3 className="text-sm font-bold text-slate-800">
+                  No boarding guests found for this filter
+                </h3>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                  No pets are currently in this status. You can book a new stay or check in arriving guests from the boarding hub.
+                </p>
+                <Link
+                  to="/boarding"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-sm transition-colors"
+                >
+                  <PlusCircle className="w-4 h-4" />
+                  <span>Book / Check-In Boarding Stay</span>
+                </Link>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {filteredBoardingStays.map((booking) => {
+                  const isUploading = uploadingBookingId === booking.id;
+                  const hasPhoto = Boolean(booking.stay_photo);
+
+                  return (
+                    <div
+                      key={booking.id}
+                      className="border border-slate-200/90 rounded-2xl overflow-hidden bg-white shadow-xs hover:shadow-md transition-all flex flex-col justify-between relative"
+                    >
+                      {/* Pet & Stay Header */}
+                      <div className="p-4 border-b border-slate-100 bg-slate-50/50">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-3">
+                            <div className="w-11 h-11 rounded-xl bg-brand-100 text-brand-700 font-black text-sm flex items-center justify-center shrink-0">
+                              {booking.pet_name?.charAt(0) || '🐾'}
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h3 className="text-sm font-black text-slate-900">
+                                  {booking.pet_name}
+                                </h3>
+                                <span
+                                  className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                                    booking.status === 'CHECKED_IN'
+                                      ? 'bg-indigo-100 text-indigo-800 border border-indigo-200'
+                                      : 'bg-amber-100 text-amber-800 border border-amber-200'
+                                  }`}
+                                >
+                                  {booking.status === 'CHECKED_IN' ? 'In Suite' : 'Reserved'}
+                                </span>
                               </div>
+                              <p className="text-[11px] text-slate-500">
+                                {booking.pet_breed || booking.pet_species || 'Pet Guest'} •{' '}
+                                <strong className="text-brand-700">
+                                  {booking.room_number ? `Suite ${booking.room_number}` : 'Standard Suite'}
+                                </strong>
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Client Info & Dates */}
+                        <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs">
+                          <div className="text-slate-600 truncate">
+                            <span className="font-semibold text-slate-800">{booking.customer_name}</span>
+                            {booking.customer_phone && (
+                              <span className="text-slate-400 block text-[10px]">{booking.customer_phone}</span>
                             )}
                           </div>
+                          <div className="text-right text-[11px] text-slate-500 font-medium">
+                            <span>{booking.check_in_date}</span>
+                            <span className="text-slate-300 mx-1">→</span>
+                            <span>{booking.expected_check_out_date}</span>
+                          </div>
+                        </div>
+                      </div>
 
-                          {/* Timestamp & Change Button */}
-                          <div className="flex items-center justify-between pt-1">
-                            <span className="text-[10px] text-slate-400">
-                              {booking.stay_photo_updated_at ? (
-                                `Updated: ${new Date(booking.stay_photo_updated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-                              ) : (
-                                'Photo uploaded'
+                      {/* PHOTO UPLOAD & PREVIEW AREA */}
+                      <div className="p-4 flex-1 flex flex-col justify-center">
+                        {hasPhoto ? (
+                          <div className="space-y-2.5">
+                            {/* Image Thumbnail with Overlay */}
+                            <div
+                              className="relative group rounded-xl overflow-hidden bg-slate-950 aspect-video cursor-pointer border border-slate-200 shadow-xs"
+                              onClick={() =>
+                                setSelectedPhotoModal({
+                                  isOpen: true,
+                                  photoUrl: booking.stay_photo,
+                                  petName: booking.pet_name,
+                                  roomNumber: booking.room_number,
+                                  date: booking.stay_photo_updated_at,
+                                })
+                              }
+                            >
+                              <img
+                                src={booking.stay_photo}
+                                alt={`Stay photo of ${booking.pet_name}`}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              />
+                              {/* Overlay Badge */}
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-90 group-hover:opacity-100 transition-opacity flex items-end justify-between p-2.5 text-white">
+                                <span className="px-2 py-0.5 rounded-md bg-emerald-500/90 text-[10px] font-black uppercase tracking-wider flex items-center gap-1 shadow-xs">
+                                  <Eye className="w-3 h-3" />
+                                  <span>Visible to Owner</span>
+                                </span>
+                                <span className="p-1 rounded-md bg-white/20 hover:bg-white/40 text-white transition-colors">
+                                  <Maximize2 className="w-3.5 h-3.5" />
+                                </span>
+                              </div>
+
+                              {isUploading && (
+                                <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-xs flex items-center justify-center">
+                                  <LoadingSpinner size="sm" text="Uploading photo..." />
+                                </div>
                               )}
-                            </span>
+                            </div>
 
-                            {/* Hidden File Input for Changing Photo */}
+                            {/* Timestamp & Change Button */}
+                            <div className="flex items-center justify-between pt-1">
+                              <span className="text-[10px] text-slate-400">
+                                {booking.stay_photo_updated_at ? (
+                                  `Updated: ${new Date(booking.stay_photo_updated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                                ) : (
+                                  'Photo uploaded'
+                                )}
+                              </span>
+
+                              {/* Hidden File Input for Changing Photo */}
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                ref={(el) => (fileInputRefs.current[booking.id] = el)}
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) handlePhotoUpload(booking, file);
+                                  e.target.value = '';
+                                }}
+                              />
+
+                              <button
+                                type="button"
+                                disabled={isUploading}
+                                onClick={() => fileInputRefs.current[booking.id]?.click()}
+                                className="px-2.5 py-1 bg-slate-100 hover:bg-brand-50 text-slate-700 hover:text-brand-700 rounded-lg text-xs font-bold transition-colors flex items-center gap-1"
+                              >
+                                <Camera className="w-3.5 h-3.5 text-brand-600" />
+                                <span>{isUploading ? 'Uploading...' : 'Change Photo'}</span>
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          /* Upload Prompt / Dropzone */
+                          <div className="space-y-3">
+                            {/* Hidden File Input */}
                             <input
                               type="file"
                               accept="image/*"
@@ -696,76 +936,70 @@ export const Dashboard = () => {
                               }}
                             />
 
+                            <div
+                              onClick={() => !isUploading && fileInputRefs.current[booking.id]?.click()}
+                              className={`p-5 rounded-xl border-2 border-dashed transition-all text-center cursor-pointer ${
+                                isUploading
+                                  ? 'border-brand-300 bg-brand-50/50'
+                                  : 'border-slate-200 hover:border-brand-400 bg-slate-50/70 hover:bg-brand-50/30'
+                              }`}
+                            >
+                              {isUploading ? (
+                                <LoadingSpinner size="sm" text="Uploading stay photo..." />
+                              ) : (
+                                <div className="space-y-1.5">
+                                  <div className="w-9 h-9 mx-auto rounded-full bg-brand-100 text-brand-700 flex items-center justify-center shadow-xs">
+                                    <Camera className="w-4 h-4" />
+                                  </div>
+                                  <p className="text-xs font-bold text-slate-800">
+                                    Upload Daily Stay Photo
+                                  </p>
+                                  <p className="text-[10px] text-slate-400 leading-tight max-w-[190px] mx-auto">
+                                    Click to select a photo of {booking.pet_name}. It will be shared with the owner.
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+
                             <button
                               type="button"
                               disabled={isUploading}
                               onClick={() => fileInputRefs.current[booking.id]?.click()}
-                              className="px-2.5 py-1 bg-slate-100 hover:bg-brand-50 text-slate-700 hover:text-brand-700 rounded-lg text-xs font-bold transition-colors flex items-center gap-1"
+                              className="w-full py-1.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
                             >
-                              <Camera className="w-3.5 h-3.5 text-brand-600" />
-                              <span>{isUploading ? 'Uploading...' : 'Change Photo'}</span>
+                              <UploadCloud className="w-3.5 h-3.5" />
+                              <span>{isUploading ? 'Uploading...' : 'Upload Photo for Owner'}</span>
                             </button>
                           </div>
-                        </div>
-                      ) : (
-                        /* Upload Prompt / Dropzone */
-                        <div className="space-y-3">
-                          {/* Hidden File Input */}
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            ref={(el) => (fileInputRefs.current[booking.id] = el)}
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) handlePhotoUpload(booking, file);
-                              e.target.value = '';
-                            }}
-                          />
+                        )}
+                      </div>
 
-                          <div
-                            onClick={() => !isUploading && fileInputRefs.current[booking.id]?.click()}
-                            className={`p-5 rounded-xl border-2 border-dashed transition-all text-center cursor-pointer ${
-                              isUploading
-                                ? 'border-brand-300 bg-brand-50/50'
-                                : 'border-slate-200 hover:border-brand-400 bg-slate-50/70 hover:bg-brand-50/30'
-                            }`}
-                          >
-                            {isUploading ? (
-                              <LoadingSpinner size="sm" text="Uploading stay photo..." />
-                            ) : (
-                              <div className="space-y-1.5">
-                                <div className="w-9 h-9 mx-auto rounded-full bg-brand-100 text-brand-700 flex items-center justify-center shadow-xs">
-                                  <Camera className="w-4 h-4" />
-                                </div>
-                                <p className="text-xs font-bold text-slate-800">
-                                  Upload Daily Stay Photo
-                                </p>
-                                <p className="text-[10px] text-slate-400 leading-tight max-w-[190px] mx-auto">
-                                  Click to select a photo of {booking.pet_name}. It will be shared with the owner.
-                                </p>
-                              </div>
-                            )}
-                          </div>
-
-                          <button
-                            type="button"
-                            disabled={isUploading}
-                            onClick={() => fileInputRefs.current[booking.id]?.click()}
-                            className="w-full py-1.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-xs transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
-                          >
-                            <UploadCloud className="w-3.5 h-3.5" />
-                            <span>{isUploading ? 'Uploading...' : 'Upload Photo for Owner'}</span>
-                          </button>
-                        </div>
-                      )}
+                      {/* Pet Digital Diary Trigger */}
+                      <div className="p-3 bg-amber-50/60 border-t border-amber-100 flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-amber-900 flex items-center gap-1.5">
+                          <BookOpen className="w-3.5 h-3.5 text-amber-700" />
+                          <span>Digital Diary</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedDiaryBooking(booking);
+                            setIsDiaryModalOpen(true);
+                          }}
+                          className="px-3 py-1 bg-white hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
+                        >
+                          <span>Open Diary & Logs</span>
+                          <span>→</span>
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+                  );
+
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* SIMPLIFIED LOWER SECTION (2 Balanced Columns) */}
@@ -926,8 +1160,22 @@ export const Dashboard = () => {
           </div>
         </Modal>
       )}
+
+      {/* Digital Diary Modal */}
+      {isDiaryModalOpen && selectedDiaryBooking && (
+        <DigitalDiaryModal
+          isOpen={isDiaryModalOpen}
+          onClose={() => {
+            setIsDiaryModalOpen(false);
+            setSelectedDiaryBooking(null);
+          }}
+          booking={selectedDiaryBooking}
+          onUpdated={fetchDashboardData}
+        />
+      )}
     </div>
   );
+
 };
 
 export default Dashboard;

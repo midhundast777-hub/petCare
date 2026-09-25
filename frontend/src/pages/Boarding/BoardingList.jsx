@@ -6,6 +6,7 @@ import { useAuth } from '../../hooks/useAuth';
 import DataTable from '../../components/DataTable';
 import BoardingModal from './BoardingModal';
 import ChecklistModal from '../../components/ChecklistModal';
+import DigitalDiaryModal from '../../components/DigitalDiaryModal';
 import Modal from '../../components/Modal';
 import {
   Home,
@@ -23,8 +24,10 @@ import {
   Sparkles,
   Eye,
   Camera,
-  UploadCloud
+  UploadCloud,
+  BookOpen
 } from 'lucide-react';
+
 
 export const BoardingList = ({ isEmbedded = false }) => {
   const { isStaff, isAdmin } = useAuth();
@@ -45,13 +48,18 @@ export const BoardingList = ({ isEmbedded = false }) => {
   const [checklistMode, setChecklistMode] = useState('checkin');
   const [isChecklistModalOpen, setIsChecklistModalOpen] = useState(false);
 
-  // Daily Care Log modal
-  const [careLogTarget, setCareLogTarget] = useState(null);
-  const [careLogs, setCareLogs] = useState([]);
-  const [isCareLogModalOpen, setIsCareLogModalOpen] = useState(false);
-  const [careType, setCareType] = useState('FEEDING');
-  const [careNotes, setCareNotes] = useState('');
-  const [loggingCare, setLoggingCare] = useState(false);
+  // Digital Diary Modal
+  const [diaryTarget, setDiaryTarget] = useState(null);
+  const [isDiaryModalOpen, setIsDiaryModalOpen] = useState(false);
+
+  const openDiary = (booking) => {
+    setDiaryTarget(booking);
+    setIsDiaryModalOpen(true);
+  };
+
+  const openCareLogs = (booking) => {
+    openDiary(booking);
+  };
 
   const fetchBoardingData = async () => {
     setLoading(true);
@@ -80,16 +88,6 @@ export const BoardingList = ({ isEmbedded = false }) => {
     setIsChecklistModalOpen(true);
   };
 
-  const openCareLogs = async (booking) => {
-    setCareLogTarget(booking);
-    setIsCareLogModalOpen(true);
-    try {
-      const logs = await boardingService.getCareLogs(booking.id);
-      setCareLogs(Array.isArray(logs) ? logs : logs.results || []);
-    } catch (err) {
-      console.error(err);
-    }
-  };
 
   const handleQuickStatusChange = async (booking, newStatus) => {
     try {
@@ -330,15 +328,16 @@ export const BoardingList = ({ isEmbedded = false }) => {
             <span>View</span>
           </button>
 
-          {/* Daily Care Logs */}
+          {/* Digital Diary */}
           <button
-            onClick={() => openCareLogs(row)}
-            title="View Daily Care Logs"
-            className="flex items-center gap-1 px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+            onClick={() => openDiary(row)}
+            title="Open Pet Digital Diary (Arrival, Daily Stay Activities & Departure)"
+            className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200/90 rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer"
           >
-            <Activity className="w-3.5 h-3.5 text-brand-600" />
-            <span>Care Logs</span>
+            <BookOpen className="w-3.5 h-3.5 text-amber-600" />
+            <span>Digital Diary</span>
           </button>
+
 
           {/* Action buttons matching Boarding Stay Lifecycle */}
           {(isStaff || isAdmin) && (
@@ -668,92 +667,19 @@ export const BoardingList = ({ isEmbedded = false }) => {
         />
       )}
 
-      {/* Daily Care Log Modal */}
-      {isCareLogModalOpen && careLogTarget && (
-        <Modal
-          isOpen={isCareLogModalOpen}
-          onClose={() => setIsCareLogModalOpen(false)}
-          title={`Daily Care Logs: ${careLogTarget.pet_name}`}
-          subtitle={`Booking: ${careLogTarget.booking_id} • Room: ${careLogTarget.room_number || 'Standard'}`}
-          maxWidth="max-w-xl"
-        >
-          <div className="space-y-5">
-            {/* New Care Log Form */}
-            {(isStaff || isAdmin) && (
-              <form onSubmit={handleAddCareLog} className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
-                <p className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                  Log New Care Activity
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                      Activity Type
-                    </label>
-                    <select
-                      value={careType}
-                      onChange={(e) => setCareType(e.target.value)}
-                      className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium focus:ring-2 focus:ring-brand-500/20"
-                    >
-                      <option value="FEEDING">Feeding</option>
-                      <option value="MEDICATION">Medication Administered</option>
-                      <option value="EXERCISE">Exercise / Playtime</option>
-                      <option value="GROOMING">Grooming / Brushing</option>
-                      <option value="POTTY">Potty Break</option>
-                      <option value="HEALTH_CHECK">Health Check</option>
-                      <option value="BEHAVIOR">Behavior Observation</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                      Notes & Observations
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={careNotes}
-                      onChange={(e) => setCareNotes(e.target.value)}
-                      placeholder="e.g. Ate all kibble, brisk walk in yard"
-                      className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-brand-500/20"
-                    />
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loggingCare}
-                  className="w-full py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-bold shadow-sm transition-colors disabled:opacity-50"
-                >
-                  {loggingCare ? 'Logging...' : 'Record Activity'}
-                </button>
-              </form>
-            )}
-
-            {/* Existing Logs List */}
-            <div className="space-y-2 max-h-64 overflow-y-auto">
-              {careLogs.map((log) => (
-                <div key={log.id} className="p-3 bg-white border border-slate-200 rounded-xl text-xs space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-brand-700 uppercase text-[10px] tracking-wider">
-                      {log.care_type}
-                    </span>
-                    <span className="text-[10px] text-slate-400">
-                      {new Date(log.logged_at).toLocaleString()}
-                    </span>
-                  </div>
-                  <p className="text-slate-700">{log.notes}</p>
-                  {log.staff_name && (
-                    <p className="text-[10px] text-slate-400">Logged by: {log.staff_name}</p>
-                  )}
-                </div>
-              ))}
-              {careLogs.length === 0 && (
-                <p className="text-xs text-slate-400 text-center py-4">No care logs recorded for this stay yet.</p>
-              )}
-            </div>
-          </div>
-        </Modal>
+      {/* Pet Boarding Digital Diary Modal */}
+      {isDiaryModalOpen && diaryTarget && (
+        <DigitalDiaryModal
+          isOpen={isDiaryModalOpen}
+          onClose={() => {
+            setIsDiaryModalOpen(false);
+            setDiaryTarget(null);
+          }}
+          booking={diaryTarget}
+          onUpdated={fetchBoardingData}
+        />
       )}
+
 
       {/* View Stay Details Modal */}
       {viewingBooking && (
@@ -894,13 +820,14 @@ export const BoardingList = ({ isEmbedded = false }) => {
                 onClick={() => {
                   const target = viewingBooking;
                   setViewingBooking(null);
-                  openCareLogs(target);
+                  openDiary(target);
                 }}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-brand-50 text-slate-700 hover:text-brand-700 font-bold rounded-xl transition-colors"
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 font-bold rounded-xl transition-all shadow-xs cursor-pointer"
               >
-                <Activity className="w-4 h-4 text-brand-600" />
-                <span>Open Care Logs</span>
+                <BookOpen className="w-4 h-4 text-amber-600" />
+                <span>Open Pet Digital Diary</span>
               </button>
+
 
               <button
                 type="button"

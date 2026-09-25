@@ -49,9 +49,19 @@ class DashboardSummaryView(APIView):
                 'unpaid_balance': round(unpaid_balance, 2)
             })
 
-        # Admin / Staff overall metrics
-        total_customers = Customer.objects.count()
-        total_pets = Pet.objects.count()
+        # Admin / Staff overall metrics:
+        # Strictly include ONLY customers and pets who take services (appointments, boarding, invoices).
+        # Casual visitors who merely register/login or create a pet account without taking services are excluded.
+        service_customers_qs = Customer.objects.filter(
+            Q(appointments__isnull=False) | Q(boarding_bookings__isnull=False) | Q(invoices__isnull=False)
+        ).distinct()
+        total_customers = service_customers_qs.count()
+
+        service_pets_qs = Pet.objects.filter(
+            Q(appointments__isnull=False) | Q(boarding_bookings__isnull=False) | Q(invoices__isnull=False)
+        ).distinct()
+        total_pets = service_pets_qs.count()
+
         today_appointments = Appointment.objects.filter(date=today).count()
         upcoming_appointments = Appointment.objects.filter(date__gt=today, status__in=['CONFIRMED', 'PENDING']).count()
         pets_currently_boarding = BoardingBooking.objects.filter(status='CHECKED_IN').count()
@@ -68,7 +78,7 @@ class DashboardSummaryView(APIView):
         today_payments = Payment.objects.filter(payment_date__date=today).aggregate(total=Sum('amount'))['total'] or 0.00
         monthly_payments = Payment.objects.filter(payment_date__date__gte=first_of_month).aggregate(total=Sum('amount'))['total'] or 0.00
         
-        new_customers_this_month = Customer.objects.filter(registration_date__date__gte=first_of_month).count()
+        new_customers_this_month = service_customers_qs.filter(registration_date__date__gte=first_of_month).count()
 
         # Boarding occupancy
         total_rooms = Room.objects.count()
@@ -101,9 +111,62 @@ class DashboardSummaryView(APIView):
 
         activities = sorted(activities, key=lambda x: x['time'], reverse=True)[:6]
 
+        # Detailed list of people/clients who take pet services
+        service_clients = []
+        for cust in service_customers_qs.prefetch_related('pets', 'appointments__service', 'boarding_bookings')[:20]:
+            serviced_pets = list(
+                cust.pets.filter(
+                    Q(appointments__isnull=False) | Q(boarding_bookings__isnull=False) | Q(invoices__isnull=False)
+                ).distinct().values_list('name', flat=True)
+            )
+            # Latest service info
+            last_apt = cust.appointments.select_related('service').order_by('-date', '-created_at').first()
+            last_brd = cust.boarding_bookings.order_by('-check_in_date', '-created_at').first()
+            
+            latest_service = "Pet Care Service"
+            latest_date = None
+            service_type = "SERVICE"
+            if last_apt and last_brd:
+                if last_apt.created_at >= last_brd.created_at:
+                    latest_service = last_apt.service.name if last_apt.service else "Appointment"
+                    latest_date = str(last_apt.date)
+                    service_type = "APPOINTMENT"
+                else:
+                    latest_service = f"Boarding ({last_brd.get_package_display()})"
+                    latest_date = str(last_brd.check_in_date)
+                    service_type = "BOARDING"
+            elif last_apt:
+                latest_service = last_apt.service.name if last_apt.service else "Appointment"
+                latest_date = str(last_apt.date)
+                service_type = "APPOINTMENT"
+            elif last_brd:
+                latest_service = f"Boarding ({last_brd.get_package_display()})"
+                latest_date = str(last_brd.check_in_date)
+                service_type = "BOARDING"
+
+            total_services = cust.appointments.count() + cust.boarding_bookings.count()
+
+            service_clients.append({
+                'id': cust.id,
+                'customer_id': cust.customer_id,
+                'name': cust.full_name,
+                'email': cust.email,
+                'phone': cust.phone,
+                'pets': serviced_pets,
+                'pets_count': len(serviced_pets),
+                'latest_service': latest_service,
+                'latest_date': latest_date,
+                'service_type': service_type,
+                'total_services': total_services,
+                'status': cust.status
+            })
+
         return Response({
             'total_customers': total_customers,
             'total_pets': total_pets,
+            'service_customers_count': total_customers,
+            'service_pets_count': total_pets,
+            'service_clients': service_clients,
             'today_appointments': today_appointments,
             'upcoming_appointments': upcoming_appointments,
             'pets_currently_boarding': pets_currently_boarding,
@@ -191,7 +254,11 @@ class DashboardChartsView(APIView):
             else:
                 m_end = m_start.replace(month=m_start.month + 1, day=1) - timedelta(days=1)
 
-            count = Customer.objects.filter(registration_date__date__range=[m_start, m_end]).count()
+            count = Customer.objects.filter(
+                registration_date__date__range=[m_start, m_end]
+            ).filter(
+                Q(appointments__isnull=False) | Q(boarding_bookings__isnull=False) | Q(invoices__isnull=False)
+            ).distinct().count()
             customer_growth.append({
                 'month': m_start.strftime('%b'),
                 'new_customers': count

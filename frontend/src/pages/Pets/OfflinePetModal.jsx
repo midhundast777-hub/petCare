@@ -6,6 +6,7 @@ import { authService } from '../../services/authService';
 import { useToast } from '../../context/ToastContext';
 import { SPECIES_BREEDS } from './PetModal';
 import { Dog, User, Phone, Mail, MapPin, Camera, Upload, Trash2, CheckCircle2, UserPlus } from 'lucide-react';
+import { validatePhone, validateEmail, formatPhoneInput } from '../../utils/validation';
 
 export const OfflinePetModal = ({ isOpen, onClose, onSaved }) => {
   const { addToast } = useToast();
@@ -103,10 +104,35 @@ export const OfflinePetModal = ({ isOpen, onClose, onSaved }) => {
         ownerName = existing ? existing.full_name : 'Customer';
       } else {
         // Validation for new walk-in owner
-        if (!ownerData.first_name.trim() || !ownerData.phone.trim()) {
-          addToast('Owner first name and phone number are required for walk-in registration', 'error');
+        if (!ownerData.first_name.trim()) {
+          addToast('Owner first name is required for walk-in registration', 'error');
           setLoading(false);
           return;
+        }
+
+        const phoneVal = validatePhone(ownerData.phone);
+        if (!phoneVal.valid) {
+          addToast(`Owner phone: ${phoneVal.message}`, 'error');
+          setLoading(false);
+          return;
+        }
+
+        if (ownerData.email && ownerData.email.trim()) {
+          const emailVal = validateEmail(ownerData.email);
+          if (!emailVal.valid) {
+            addToast(emailVal.message, 'error');
+            setLoading(false);
+            return;
+          }
+        }
+
+        if (ownerData.emergency_contact_phone && ownerData.emergency_contact_phone.trim()) {
+          const emgVal = validatePhone(ownerData.emergency_contact_phone);
+          if (!emgVal.valid) {
+            addToast(`Emergency phone: ${emgVal.message}`, 'error');
+            setLoading(false);
+            return;
+          }
         }
 
         const phoneDigits = ownerData.phone.replace(/\D/g, '') || '0000000000';
@@ -265,16 +291,30 @@ export const OfflinePetModal = ({ isOpen, onClose, onSaved }) => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
-                  Phone Number *
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold uppercase text-slate-700">
+                    Phone Number *
+                  </label>
+                  <span className={`text-[11px] font-mono font-bold ${
+                    ownerData.phone.replace(/\D/g, '').length === 10
+                      ? 'text-emerald-600'
+                      : 'text-slate-400'
+                  }`}>
+                    {ownerData.phone.replace(/\D/g, '').length}/10 digits
+                  </span>
+                </div>
                 <input
                   type="tel"
                   required={ownerMode === 'new'}
-                  placeholder="e.g. 9847012345"
+                  maxLength={14}
+                  placeholder="e.g. 9847012345 (10 digits)"
                   value={ownerData.phone}
-                  onChange={(e) => setOwnerData({ ...ownerData, phone: e.target.value })}
-                  className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500/20"
+                  onChange={(e) => setOwnerData({ ...ownerData, phone: formatPhoneInput(e.target.value) })}
+                  className={`w-full px-3.5 py-2 bg-white border rounded-xl text-sm focus:ring-2 ${
+                    ownerData.phone && ownerData.phone.replace(/\D/g, '').length === 10
+                      ? 'border-emerald-300 focus:border-emerald-500 focus:ring-emerald-500/20'
+                      : 'border-slate-200 focus:ring-brand-500/20'
+                  }`}
                 />
               </div>
 

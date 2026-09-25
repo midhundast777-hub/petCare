@@ -22,8 +22,11 @@ import {
   Edit,
   User,
   ShieldAlert,
-  Plus
+  Plus,
+  BookOpen,
+  Home
 } from 'lucide-react';
+import DigitalDiaryModal from '../../components/DigitalDiaryModal';
 
 export const PetDetail = () => {
   const { id } = useParams();
@@ -38,6 +41,9 @@ export const PetDetail = () => {
   const [boardings, setBoardings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedDiaryBooking, setSelectedDiaryBooking] = useState(null);
+  const [isDiaryOpen, setIsDiaryOpen] = useState(false);
+
 
   const fetchPetData = async () => {
     try {
@@ -404,6 +410,101 @@ export const PetDetail = () => {
         </div>
       </div>
 
+      {/* Boarding Sanctuary Stays & Pet Digital Diary */}
+      <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center font-bold">
+              <BookOpen className="w-5 h-5 text-amber-600" />
+            </div>
+            <div>
+              <h3 className="text-sm sm:text-base font-black text-slate-900 tracking-tight">
+                Boarding Stays & Digital Diary ({boardings.length})
+              </h3>
+              <p className="text-[11px] text-slate-500">
+                Chronological journey of intake activity when {pet.name} arrives, daily care, and farewell when leaving
+              </p>
+            </div>
+          </div>
+          <Link
+            to="/boarding"
+            className="text-xs font-bold text-brand-600 hover:text-brand-700 flex items-center gap-1 self-start sm:self-auto"
+          >
+            <span>Boarding Hub</span>
+            <span>→</span>
+          </Link>
+        </div>
+
+        {boardings.length === 0 ? (
+          <div className="py-8 text-center space-y-2 bg-slate-50/60 rounded-xl border border-dashed border-slate-200">
+            <p className="text-xs font-bold text-slate-700">No Boarding Stays Recorded Yet</p>
+            <p className="text-[11px] text-slate-400 max-w-sm mx-auto">
+              When {pet.name} checks in for sanctuary boarding or daycare, all intake, stay activities, photos, and departure summaries will appear in their digital diary.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {boardings.map((stay) => (
+              <div
+                key={stay.id}
+                className="p-4 rounded-xl border border-slate-200/80 bg-slate-50/50 hover:bg-white hover:border-slate-300 transition-all shadow-xs space-y-3"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-[11px] font-black text-brand-700 bg-brand-50 border border-brand-200 px-2 py-0.5 rounded-lg">
+                      {stay.booking_id || `#BRD-${stay.id}`}
+                    </span>
+                    <span className="text-xs font-bold text-slate-800">
+                      {stay.room_number ? `Suite ${stay.room_number}` : 'Standard Suite'}
+                    </span>
+                  </div>
+
+                  <span
+                    className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                      stay.status === 'CHECKED_IN'
+                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                        : stay.status === 'CHECKED_OUT'
+                        ? 'bg-slate-100 text-slate-700 border border-slate-200'
+                        : 'bg-amber-100 text-amber-800 border border-amber-200'
+                    }`}
+                  >
+                    {stay.status_display || stay.status}
+                  </span>
+                </div>
+
+                <div className="text-xs text-slate-600 flex items-center justify-between bg-white p-2.5 rounded-lg border border-slate-200/60">
+                  <div>
+                    <span className="block text-[10px] uppercase font-bold text-slate-400">Arrival</span>
+                    <span className="font-bold text-slate-800">{stay.check_in_date}</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="block text-[10px] uppercase font-bold text-slate-400">Departure</span>
+                    <span className="font-bold text-slate-800">{stay.expected_check_out_date}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-[11px] text-slate-500 font-medium">
+                    {stay.package}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedDiaryBooking(stay);
+                      setIsDiaryOpen(true);
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-xs font-bold transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
+                  >
+                    <BookOpen className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Open Digital Diary</span>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Pet Edit Modal */}
       {isEditModalOpen && (
         <PetModal
@@ -413,8 +514,22 @@ export const PetDetail = () => {
           onSaved={fetchPetData}
         />
       )}
+
+      {/* Pet Digital Diary Modal */}
+      {isDiaryOpen && selectedDiaryBooking && (
+        <DigitalDiaryModal
+          isOpen={isDiaryOpen}
+          onClose={() => {
+            setIsDiaryOpen(false);
+            setSelectedDiaryBooking(null);
+          }}
+          booking={selectedDiaryBooking}
+          onUpdated={fetchPetData}
+        />
+      )}
     </div>
   );
 };
+
 
 export default PetDetail;

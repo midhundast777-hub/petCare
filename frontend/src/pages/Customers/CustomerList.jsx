@@ -13,6 +13,7 @@ export const CustomerList = () => {
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
+  const [servicesOnlyFilter, setServicesOnlyFilter] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState(null);
 
@@ -21,6 +22,7 @@ export const CustomerList = () => {
     try {
       const data = await customerService.getAll({
         status: statusFilter || undefined,
+        has_services: servicesOnlyFilter ? 'true' : undefined,
       });
       setCustomers(Array.isArray(data) ? data : data.results || []);
     } catch (err) {
@@ -33,7 +35,7 @@ export const CustomerList = () => {
 
   useEffect(() => {
     fetchCustomers();
-  }, [statusFilter]);
+  }, [statusFilter, servicesOnlyFilter]);
 
   const handleDelete = async (id, name) => {
     if (window.confirm(`Are you sure you want to delete customer ${name}?`)) {
@@ -199,15 +201,28 @@ export const CustomerList = () => {
         loading={loading}
         searchPlaceholder="Search by name, email, phone, or customer ID..."
         filterComponent={
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
-          >
-            <option value="">All Statuses</option>
-            <option value="ACTIVE">Active</option>
-            <option value="INACTIVE">Inactive</option>
-          </select>
+          <div className="flex items-center gap-2">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+            >
+              <option value="">All Statuses</option>
+              <option value="ACTIVE">Active</option>
+              <option value="INACTIVE">Inactive</option>
+            </select>
+            <button
+              type="button"
+              onClick={() => setServicesOnlyFilter(!servicesOnlyFilter)}
+              className={`px-3 py-2 rounded-xl text-xs font-bold border transition-colors ${
+                servicesOnlyFilter
+                  ? 'bg-brand-50 border-brand-300 text-brand-700 shadow-xs'
+                  : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              {servicesOnlyFilter ? '✓ Has Services' : 'Filter: Has Services'}
+            </button>
+          </div>
         }
       />
 

@@ -11,6 +11,8 @@ import AppLayout from './layouts/AppLayout';
 import LandingPage from './pages/LandingPage';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import VerifyLogin from './pages/VerifyLogin';
+import VerifyEmail from './pages/VerifyEmail';
 import Dashboard from './pages/Dashboard';
 import CustomerList from './pages/Customers/CustomerList';
 import CustomerDetail from './pages/Customers/CustomerDetail';
@@ -82,6 +84,8 @@ export function App() {
             {/* Public Auth Routes */}
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/verify-login" element={<VerifyLogin />} />
+            <Route path="/verify-email" element={<VerifyEmail />} />
 
             {/* Direct App Redirect */}
             <Route path="/app" element={<Navigate to="/dashboard" replace />} />

@@ -326,6 +326,22 @@ class BoardingChecklistView(APIView):
                     # Store record to billing invoice upon check-in
                     sync_boarding_invoice(booking)
 
+                    # Auto-generate Arrival Digital Diary entry if not already present
+                    if not DailyCareLog.objects.filter(booking=booking, stage=DailyCareLog.Stage.ARRIVAL).exists():
+                        DailyCareLog.objects.create(
+                            booking=booking,
+                            stage=DailyCareLog.Stage.ARRIVAL,
+                            care_type=DailyCareLog.CareType.ARRIVAL,
+                            activity_title=f"{booking.pet.name} Arrived at Sanctuary",
+                            mood=DailyCareLog.Mood.HAPPY,
+                            activity_time=updated_checklist.checkin_completed_at or timezone.now(),
+                            weight=updated_checklist.checkin_weight_recorded,
+                            belongings_notes=updated_checklist.checkin_belongings_notes or 'Belongings received and verified.',
+                            health_notes='Vaccination verified and intake health check passed.' if updated_checklist.checkin_vaccination_verified else 'Intake health check completed.',
+                            notes=f"Welcome intake completed by {request.user.full_name or request.user.username}. {booking.pet.name} arrived safely and settled into room {booking.room.room_number if booking.room else 'reserved suite'}.",
+                            staff=request.user
+                        )
+
             # Process digital check-out
             if 'checkout_completed' in request.data:
                 if request.data['checkout_completed']:
@@ -340,6 +356,21 @@ class BoardingChecklistView(APIView):
                     booking.save()
                     sync_boarding_invoice(booking)
 
+                    # Auto-generate Departure Digital Diary entry if not already present
+                    if not DailyCareLog.objects.filter(booking=booking, stage=DailyCareLog.Stage.DEPARTURE).exists():
+                        DailyCareLog.objects.create(
+                            booking=booking,
+                            stage=DailyCareLog.Stage.DEPARTURE,
+                            care_type=DailyCareLog.CareType.DEPARTURE,
+                            activity_title=f"{booking.pet.name} Ready for Home Departure",
+                            mood=DailyCareLog.Mood.HAPPY,
+                            activity_time=updated_checklist.checkout_completed_at or timezone.now(),
+                            belongings_notes='All personal belongings, toys, and medications returned to pet owner.' if updated_checklist.checkout_belongings_returned else 'Belongings returned.',
+                            health_notes='Post-stay condition checked. Pet is clean, healthy, and energized.' if updated_checklist.checkout_condition_checked else 'Departure condition inspection completed.',
+                            notes=f"Check-out farewell inspection completed by {request.user.full_name or request.user.username}. Thank you for boarding with us! {booking.pet.name} was an absolute joy to care for.",
+                            staff=request.user
+                        )
+
             booking.save()
 
             return Response(BoardingChecklistSerializer(updated_checklist).data)
@@ -351,10 +382,26 @@ class DailyCareLogListCreateView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         booking_id = self.kwargs.get('booking_id')
-        try:
-            return DailyCareLog.objects.filter(Q(booking_id=booking_id) | Q(booking__booking_id=booking_id))
-        except Exception:
-            return DailyCareLog.objects.filter(booking__booking_id=booking_id)
+        user = self.request.user
+        queryset = DailyCareLog.objects.select_related('booking', 'booking__pet', 'staff').filter(
+            Q(booking_id=booking_id) | Q(booking__booking_id=booking_id)
+        )
+        if user.role == 'CUSTOMER' and not user.is_superuser:
+            queryset = queryset.filter(Q(booking__customer__user=user) | Q(booking__customer__email__iexact=user.email))
+
+        stage = self.request.query_params.get('stage')
+        if stage:
+            queryset = queryset.filter(stage=stage.upper())
+
+        care_type = self.request.query_params.get('care_type')
+        if care_type:
+            queryset = queryset.filter(care_type=care_type.upper())
+
+        ordering = self.request.query_params.get('ordering', 'activity_time')
+        if ordering:
+            queryset = queryset.order_by(ordering)
+
+        return queryset
 
     def perform_create(self, serializer):
         booking_id = self.kwargs.get('booking_id')
@@ -362,4 +409,60 @@ class DailyCareLogListCreateView(generics.ListCreateAPIView):
             booking = BoardingBooking.objects.get(id=booking_id)
         except (BoardingBooking.DoesNotExist, ValueError):
             booking = BoardingBooking.objects.get(booking_id=booking_id)
-        serializer.save(booking=booking, staff=self.request.user)
+
+        # Infer stage if not provided
+        care_type = serializer.validated_data.get('care_type', DailyCareLog.CareType.FEEDING)
+        stage = serializer.validated_data.get('stage')
+        if not stage:
+            if care_type == DailyCareLog.CareType.ARRIVAL:
+                stage = DailyCareLog.Stage.ARRIVAL
+            elif care_type == DailyCareLog.CareType.DEPARTURE:
+                stage = DailyCareLog.Stage.DEPARTURE
+            else:
+                stage = DailyCareLog.Stage.DAILY
+
+        log = serializer.save(booking=booking, staff=self.request.user, stage=stage)
+
+        # If photo provided, sync to booking stay_photo
+        if log.photo:
+            booking.stay_photo = log.photo
+            booking.stay_photo_updated_at = timezone.now()
+            booking.save(update_fields=['stay_photo', 'stay_photo_updated_at'])
+
+class DailyCareLogDetailView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = DailyCareLogSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        queryset = DailyCareLog.objects.select_related('booking', 'booking__pet', 'staff').all()
+        if user.role == 'CUSTOMER' and not user.is_superuser:
+            queryset = queryset.filter(Q(booking__customer__user=user) | Q(booking__customer__email__iexact=user.email))
+        return queryset
+
+    def get_permissions(self):
+        if self.request.method in ['PUT', 'PATCH', 'DELETE']:
+            return [IsStaffOrAdmin()]
+        return [permissions.IsAuthenticated()]
+
+class PetDiaryListView(generics.ListAPIView):
+    serializer_class = DailyCareLogSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        pet_id = self.kwargs.get('pet_id')
+        user = self.request.user
+        queryset = DailyCareLog.objects.select_related('booking', 'booking__pet', 'staff').filter(
+            Q(booking__pet_id=pet_id)
+        )
+        if user.role == 'CUSTOMER' and not user.is_superuser:
+            queryset = queryset.filter(
+                Q(booking__customer__user=user) | Q(booking__customer__email__iexact=user.email)
+            )
+
+        stage = self.request.query_params.get('stage')
+        if stage:
+            queryset = queryset.filter(stage=stage.upper())
+
+        return queryset.order_by('-activity_time')
+

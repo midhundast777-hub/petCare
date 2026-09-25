@@ -3,7 +3,30 @@ import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../context/ToastContext';
 import { boardingService } from '../services/boardingService';
 import { authService } from '../services/authService';
-import { User, Mail, Phone, Shield, Calendar, Camera, Home, Dog, Clock, CheckCircle2, Upload, Trash2, Loader2, Image as ImageIcon } from 'lucide-react';
+import { validatePhone, formatPhoneInput } from '../utils/validation';
+import VerificationModal from '../components/VerificationModal';
+import {
+  User,
+  Mail,
+  Phone,
+  Shield,
+  Calendar,
+  Camera,
+  Home,
+  Dog,
+  Clock,
+  CheckCircle2,
+  Upload,
+  Trash2,
+  Loader2,
+  Image as ImageIcon,
+  Bell,
+  ShieldCheck,
+  AlertCircle,
+  Sparkles,
+  BookOpen
+} from 'lucide-react';
+import DigitalDiaryModal from '../components/DigitalDiaryModal';
 
 export const Profile = () => {
   const { user, updateProfile, isAdmin, isStaff } = useAuth();
@@ -11,12 +34,21 @@ export const Profile = () => {
   const [loading, setLoading] = useState(false);
   const [bookings, setBookings] = useState([]);
   const [loadingBookings, setLoadingBookings] = useState(true);
+  const [selectedBookingForDiary, setSelectedBookingForDiary] = useState(null);
+  const [isDiaryOpen, setIsDiaryOpen] = useState(false);
+
 
   const [formData, setFormData] = useState({
     first_name: user?.first_name || '',
     last_name: user?.last_name || '',
     phone: user?.phone || '',
     avatar: user?.avatar || '',
+  });
+
+  const [verificationModal, setVerificationModal] = useState({
+    isOpen: false,
+    type: 'EMAIL',
+    destination: '',
   });
 
   const fileInputRef = useRef(null);
@@ -83,12 +115,23 @@ export const Profile = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    const phoneDigits = (formData.phone || '').replace(/\D/g, '');
+    if (formData.phone && phoneDigits.length !== 10) {
+      addToast(`Phone number must contain exactly 10 digits (currently ${phoneDigits.length} digits).`, 'error');
+      return;
+    }
+
     setLoading(true);
     try {
-      await updateProfile(formData);
+      await updateProfile({
+        ...formData,
+        phone: phoneDigits,
+      });
       addToast('Profile updated successfully!', 'success');
     } catch (err) {
-      addToast('Failed to update profile', 'error');
+      const detail = err.response?.data?.phone?.[0] || err.response?.data?.detail || 'Failed to update profile';
+      addToast(detail, 'error');
     } finally {
       setLoading(false);
     }
@@ -180,27 +223,97 @@ export const Profile = () => {
           </div>
 
           <div>
-            <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
-              Email Address (Login ID)
-            </label>
-            <input
-              type="email"
-              disabled
-              value={user?.email || ''}
-              className="w-full px-3.5 py-2 bg-slate-100 border border-slate-200 rounded-xl text-sm text-slate-500 cursor-not-allowed"
-            />
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-bold uppercase text-slate-700">
+                Email Address (Login ID)
+              </label>
+              {user?.is_email_verified ? (
+                <span className="inline-flex items-center gap-1 text-[11px] font-black text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-200">
+                  <CheckCircle2 className="w-3 h-3" />
+                  <span>Verified</span>
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setVerificationModal({
+                      isOpen: true,
+                      type: 'EMAIL',
+                      destination: user?.email || '',
+                    })
+                  }
+                  className="inline-flex items-center gap-1 text-[10px] font-bold text-brand-700 hover:text-brand-800 bg-brand-50 hover:bg-brand-100 px-2.5 py-0.5 rounded-full border border-brand-200 transition-colors cursor-pointer"
+                >
+                  <Bell className="w-3 h-3 text-brand-600 animate-bounce" />
+                  <span>Verify Email (Push Alert)</span>
+                </button>
+              )}
+            </div>
+            <div className="relative">
+              <input
+                type="email"
+                disabled
+                value={user?.email || ''}
+                className="w-full px-3.5 py-2 bg-slate-100 border border-slate-200 rounded-xl text-sm text-slate-500 cursor-not-allowed"
+              />
+            </div>
           </div>
 
           <div>
-            <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
-              Phone Number
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-bold uppercase text-slate-700">
+                Phone Number (10 Digits)
+              </label>
+              <div className="flex items-center gap-2">
+                {user?.is_phone_verified ? (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-black text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-200">
+                    <CheckCircle2 className="w-3 h-3" />
+                    <span>10-Digit Verified</span>
+                  </span>
+                ) : (formData.phone || '').replace(/\D/g, '').length === 10 ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setVerificationModal({
+                        isOpen: true,
+                        type: 'PHONE',
+                        destination: (formData.phone || '').replace(/\D/g, ''),
+                      })
+                    }
+                    className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-100 hover:bg-emerald-200 px-2.5 py-0.5 rounded-full border border-emerald-300 transition-colors cursor-pointer"
+                  >
+                    <ShieldCheck className="w-3 h-3 text-emerald-700" />
+                    <span>Verify 10-Digit Phone</span>
+                  </button>
+                ) : (
+                  <span className="text-[10px] font-bold text-amber-600">
+                    {(formData.phone || '').replace(/\D/g, '').length}/10 digits
+                  </span>
+                )}
+              </div>
+            </div>
             <input
               type="tel"
+              maxLength={14}
               value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500/20"
+              onChange={(e) =>
+                setFormData({ ...formData, phone: formatPhoneInput(e.target.value) })
+              }
+              placeholder="(555) 012-3456"
+              className={`w-full px-3.5 py-2 bg-slate-50 border rounded-xl text-sm focus:ring-2 focus:ring-brand-500/20 transition-colors ${
+                (formData.phone || '').replace(/\D/g, '').length === 10
+                  ? 'border-emerald-300 bg-emerald-50/10'
+                  : (formData.phone || '').length > 0
+                  ? 'border-amber-300'
+                  : 'border-slate-200'
+              }`}
             />
+            {(formData.phone || '').replace(/\D/g, '').length !== 10 && formData.phone ? (
+              <p className="text-[11px] text-amber-700 mt-1 flex items-center gap-1">
+                <AlertCircle className="w-3 h-3 text-amber-600" />
+                <span>Phone number must have exactly 10 digits.</span>
+              </p>
+            ) : null}
           </div>
 
           {/* Avatar Image Upload */}
@@ -412,13 +525,61 @@ export const Profile = () => {
                     {b.special_instructions}
                   </div>
                 )}
+
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-200/60">
+                  <span className="text-[11px] text-slate-500 font-medium">
+                    Live digital care logs, arrival details, photos & departure summary
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedBookingForDiary(b);
+                      setIsDiaryOpen(true);
+                    }}
+                    className="px-3.5 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-xs font-bold transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
+                  >
+                    <BookOpen className="w-3.5 h-3.5 text-amber-600" />
+                    <span>View Pet Stay Diary</span>
+                  </button>
+                </div>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      {/* Pet Digital Stay Diary Modal for Pet Parent */}
+      {isDiaryOpen && selectedBookingForDiary && (
+        <DigitalDiaryModal
+          isOpen={isDiaryOpen}
+          onClose={() => {
+            setIsDiaryOpen(false);
+            setSelectedBookingForDiary(null);
+          }}
+          booking={selectedBookingForDiary}
+          onUpdated={fetchBookings}
+        />
+      )}
+
+      {/* Verification Modal for Push Notification Email & 10-Digit Phone */}
+      {verificationModal.isOpen && (
+        <VerificationModal
+          isOpen={verificationModal.isOpen}
+          onClose={() => setVerificationModal((prev) => ({ ...prev, isOpen: false }))}
+          type={verificationModal.type}
+          destination={verificationModal.destination}
+          onVerified={() => {
+            if (verificationModal.type === 'EMAIL') {
+              if (user) user.is_email_verified = true;
+            } else {
+              if (user) user.is_phone_verified = true;
+            }
+          }}
+        />
+      )}
     </div>
   );
+
 };
 
 export default Profile;

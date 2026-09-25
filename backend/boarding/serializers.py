@@ -47,11 +47,24 @@ class RoomSerializer(serializers.ModelSerializer):
 
 class DailyCareLogSerializer(serializers.ModelSerializer):
     staff_name = serializers.ReadOnlyField(source='staff.full_name')
+    pet_name = serializers.ReadOnlyField(source='booking.pet.name')
+    pet_species = serializers.ReadOnlyField(source='booking.pet.species')
+    booking_reference = serializers.ReadOnlyField(source='booking.booking_id')
+    care_type_display = serializers.CharField(source='get_care_type_display', read_only=True)
+    stage_display = serializers.CharField(source='get_stage_display', read_only=True)
+    mood_display = serializers.CharField(source='get_mood_display', read_only=True)
 
     class Meta:
         model = DailyCareLog
-        fields = ('id', 'booking', 'care_type', 'notes', 'staff', 'staff_name', 'logged_at')
-        read_only_fields = ('id', 'booking', 'staff', 'logged_at')
+        fields = (
+            'id', 'booking', 'booking_reference', 'pet_name', 'pet_species',
+            'stage', 'stage_display', 'care_type', 'care_type_display',
+            'activity_title', 'mood', 'mood_display', 'notes', 'photo',
+            'activity_time', 'weight', 'belongings_notes', 'health_notes',
+            'dietary_notes', 'staff', 'staff_name', 'logged_at', 'updated_at'
+        )
+        read_only_fields = ('id', 'booking', 'staff', 'logged_at', 'updated_at')
+
 
 class BoardingChecklistSerializer(serializers.ModelSerializer):
     checkin_staff_name = serializers.ReadOnlyField(source='checkin_staff.full_name')
